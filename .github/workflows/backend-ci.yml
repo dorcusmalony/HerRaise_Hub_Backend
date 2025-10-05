@@ -1,0 +1,65 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: girlconnect
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_NAME: girlconnect
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DEBUG: 1
+      SECRET_KEY: dummy_secret_key
+      ALLOWED_HOSTS: "*"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint code (flake8)
+        run: |
+          pip install flake8
+          flake8 .
+
+      - name: Run Django tests
+        env:
+          DATABASE_HOST: localhost
+        run: |
+          python manage.py migrate
+          python manage.py test
+
+      - name: Test Docker build
+        run: |
+          docker build -t herraise-backend .
