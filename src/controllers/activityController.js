@@ -196,30 +196,42 @@ exports.checkAndAwardBadges = async (req, res) => {
 // @access  Public
 exports.getLeaderboard = async (req, res) => {
   try {
-    const users = await User.find({ isActive: true })
-      .select('name profilePicture totalPoints level')
-      .sort({ totalPoints: -1 })
-      .limit(50);
+    const { User } = require('../config/database').models;
+    
+    // Replace MongoDB query with Sequelize query
+    const users = await User.findAll({
+      where: { isActive: true },
+      attributes: ['id', 'name', 'profilePicture', 'totalPoints', 'level'],
+      order: [['totalPoints', 'DESC']],
+      limit: 50
+    });
 
-    const activities = await UserActivity.find({
-      user: { $in: users.map(u => u._id) }
-    }).select('user badges streak');
+    const UserActivity = require('../models/UserActivity');
+    
+    // Get activity data for these users
+    const userIds = users.map(u => u.id);
+    const activities = await UserActivity.__getSequelizeModel().then(model => 
+      model.findAll({
+        where: { userId: userIds },
+        attributes: ['userId', 'badges', 'streak']
+      })
+    );
 
     const leaderboard = users.map(user => {
       const activity = activities.find(
-        a => a.user.toString() === user._id.toString()
+        a => a.userId === user.id
       );
 
       return {
         user: {
-          id: user._id,
+          id: user.id,
           name: user.name,
           profilePicture: user.profilePicture
         },
         points: user.totalPoints,
         level: user.level,
-        badges: activity ? activity.badges.length : 0,
-        streak: activity ? activity.streak.current : 0
+        badges: activity ? (activity.badges?.length || 0) : 0,
+        streak: activity ? (activity.streak?.current || 0) : 0
       };
     });
 

@@ -61,6 +61,7 @@ const connectDB = async () => {
 		await sequelize.authenticate();
 		console.log(' PostgreSQL (Sequelize) connected');
 		
+		// Fix Users table null values
 		// Check for existing Users table and fix ALL null values before sync
 		try {
 			// Check if table exists first to avoid errors on fresh installs
@@ -110,6 +111,39 @@ const connectDB = async () => {
 			console.warn(' Warning: Could not check/fix columns:', fixErr.message);
 			// Continue anyway, as the table might not exist yet in first run
 		}
+
+		// Fix the Reports table enum issue - drop table to let Sequelize recreate it with correct enum types
+		try {
+			const [reportsTables] = await sequelize.query(
+				"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Reports'"
+			);
+			
+			if (reportsTables.length > 0) {
+				console.log(' Found Reports table with enum issue, dropping and recreating...');
+				
+				// Backup any existing report data to a temporary table
+				await sequelize.query(`
+					CREATE TEMP TABLE IF NOT EXISTS reports_backup AS
+					SELECT * FROM "Reports";
+				`);
+				
+				// Drop the Reports table entirely
+				await sequelize.query(`DROP TABLE IF EXISTS "Reports" CASCADE;`);
+				
+				// Drop existing enum types if they exist
+				await sequelize.query(`
+					DROP TYPE IF EXISTS report_type_enum CASCADE;
+					DROP TYPE IF EXISTS report_status_enum CASCADE;
+					DROP TYPE IF EXISTS urgency_level_enum CASCADE;
+					DROP TYPE IF EXISTS enum_Reports_type CASCADE;
+					DROP TYPE IF EXISTS enum_Reports_status CASCADE;
+				`).catch(e => console.log(' No enum types to drop'));
+				
+				console.log(' Reports table and enum types dropped successfully');
+			}
+		} catch (reportFixErr) {
+			console.warn(' Warning: Error handling Reports table:', reportFixErr.message);
+		}
 	} catch (error) {
 		console.error(' PostgreSQL connection error:', error.message);
 		process.exit(1);
@@ -125,7 +159,10 @@ const connectDB = async () => {
 		name: { type: DataTypes.STRING, allowNull: false },
 		email: { type: DataTypes.STRING, allowNull: false, unique: true },
 		password: { type: DataTypes.STRING },
-		role: { type: DataTypes.ENUM('mentee', 'mentor', 'admin'), defaultValue: 'mentee' },
+		role: { 
+			type: DataTypes.ENUM('mentee', 'mentor', 'admin'), 
+			defaultValue: 'mentee' 
+		},
 		profilePicture: DataTypes.STRING,
 		isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
 		totalPoints: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -153,7 +190,18 @@ const connectDB = async () => {
 			}
 		},
 		interests: { type: DataTypes.JSONB, defaultValue: ['personal growth', 'career development'] },
-		educationLevel: { type: DataTypes.STRING, defaultValue: 'secondary', allowNull: false }
+		educationLevel: { type: DataTypes.STRING, defaultValue: 'secondary', allowNull: false },
+
+		// New fields related to mentors
+		yearsOfExperience: { 
+			type: DataTypes.INTEGER, 
+			defaultValue: 0 
+		},
+		isVerified: { 
+			type: DataTypes.BOOLEAN, 
+			defaultValue: false 
+		},
+		verificationDate: DataTypes.DATE
 	}, { timestamps: true });
 
 	// Add hooks and instance methods for password hashing & reset token
@@ -247,14 +295,46 @@ const connectDB = async () => {
 		comment: { type: DataTypes.TEXT, allowNull: false }
 	}, { timestamps: true });
 
+	// Redefine the Report model to match our enhanced schema requirements
 	const Report = sequelize.define('Report', {
 		id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-		type: { type: DataTypes.STRING, defaultValue: 'other' },
+		type: { 
+			type: DataTypes.STRING, // Use STRING instead of ENUM to avoid conflicts
+			allowNull: false,
+			defaultValue: 'other',
+			validate: {
+				isIn: [['harassment', 'abuse', 'technical', 'unsafe', 'other']]
+			}
+		},
 		description: { type: DataTypes.TEXT, allowNull: false },
+		status: { 
+			type: DataTypes.STRING, // Use STRING instead of ENUM
+			allowNull: false,
+			defaultValue: 'pending',
+			validate: {
+				isIn: [['pending', 'reviewed', 'resolved', 'open', 'in-review', 'dismissed']]
+			}
+		},
+		urgencyLevel: {
+			type: DataTypes.STRING, // Use STRING instead of ENUM
+			allowNull: false,
+			defaultValue: 'medium',
+			validate: {
+				isIn: [['low', 'medium', 'high', 'critical']]
+			}
+		},
+		isAnonymous: {
+			type: DataTypes.BOOLEAN,
+			defaultValue: false
+		},
+		relatedUserIds: { 
+			type: DataTypes.JSONB, 
+			defaultValue: [] 
+		},
 		location: DataTypes.STRING,
 		contact: DataTypes.STRING,
-		status: { type: DataTypes.STRING, defaultValue: 'open' },
 		metadata: { type: DataTypes.JSONB, defaultValue: {} },
+		notifiedAt: DataTypes.DATE,
 		resolvedAt: DataTypes.DATE
 	}, { timestamps: true });
 
@@ -266,6 +346,47 @@ const connectDB = async () => {
 		lastActiveDate: DataTypes.DATE,
 		dailyActivity: { type: DataTypes.JSONB, defaultValue: [] },
 		badges: { type: DataTypes.JSONB, defaultValue: [] }
+	}, { timestamps: true });
+
+	// New model for mentor-specific details
+	const MentorProfile = sequelize.define('MentorProfile', {
+		id: { 
+			type: DataTypes.UUID, 
+			defaultValue: DataTypes.UUIDV4, 
+			primaryKey: true 
+		},
+		expertise: { 
+			type: DataTypes.JSONB, 
+			defaultValue: [] 
+		},
+		bio: DataTypes.TEXT,
+		professionalTitle: DataTypes.STRING,
+		organization: DataTypes.STRING,
+		availabilityHours: { 
+			type: DataTypes.JSONB, 
+			defaultValue: { 
+				monday: [], 
+				tuesday: [], 
+				wednesday: [], 
+				thursday: [], 
+				friday: [], 
+				saturday: [], 
+				sunday: [] 
+			} 
+		},
+		maxMentees: { 
+			type: DataTypes.INTEGER, 
+			defaultValue: 5 
+		},
+		linkedinProfile: DataTypes.STRING,
+		educationHistory: { 
+			type: DataTypes.JSONB, 
+			defaultValue: [] 
+		},
+		workHistory: { 
+			type: DataTypes.JSONB, 
+			defaultValue: [] 
+		}
 	}, { timestamps: true });
 
 	// Associations
@@ -288,12 +409,36 @@ const connectDB = async () => {
 	User.hasOne(UserActivity, { foreignKey: 'userId' });
 	UserActivity.belongsTo(User, { foreignKey: 'userId' });
 
-	// Export models for seeders and later migrations
-	exportedModels = { User, Badge, Resource, Goal, GoalMilestone, MentorComment, Report, UserActivity };
+	// Add mentor-specific association
+	User.hasOne(MentorProfile, { foreignKey: 'userId' });
+	MentorProfile.belongsTo(User, { foreignKey: 'userId' });
 
-	// Sync models to create tables (use alter in development to adjust schema)
+	// Export models for seeders and later migrations
+	exportedModels = { 
+		User, 
+		Badge, 
+		Resource, 
+		Goal, 
+		GoalMilestone, 
+		MentorComment, 
+		Report, 
+		UserActivity,
+		MentorProfile  // Add the new model
+	};
+
+	// Two-phase sync to handle the Reports table separately
 	try {
-		await sequelize.sync({ alter: true });
+		// First sync all models except Report
+		for (const modelName in exportedModels) {
+			if (modelName !== 'Report') {
+				await exportedModels[modelName].sync({ alter: true });
+			}
+		}
+		
+		// Then sync the Report model with force:true to recreate it
+		await Report.sync({ force: true });
+		console.log(' Reports table recreated successfully');
+		
 		console.log(' Sequelize models synced (tables created/updated)');
 	} catch (syncErr) {
 		console.error(' Sequelize sync error:', syncErr.message);

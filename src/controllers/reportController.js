@@ -77,7 +77,7 @@ exports.getReport = async (req, res) => {
     }
 
     // Allow owner, mentor, admin
-    if (report.reporter && req.user && report.reporter._id.toString() === req.user.id) {
+    if (report.reporter && req.user && report.reporter.id.toString() === req.user.id) {
       return res.status(200).json({ success: true, report });
     }
 
@@ -115,7 +115,7 @@ exports.updateReportStatus = async (req, res) => {
     await report.save();
 
     // TODO: notify reporter/assigned moderator (email/push)
-    console.log('Report updated:', report._id, 'status:', report.status);
+    console.log('Report updated:', report.id, 'status:', report.status);
 
     res.status(200).json({ success: true, report });
   } catch (error) {
