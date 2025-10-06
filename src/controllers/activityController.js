@@ -1,0 +1,236 @@
+const UserActivity = require('../models/UserActivity');
+const Badge = require('../models/badges');
+const User = require('../models/user');
+
+// @desc    Get user activity
+// @route   GET /api/activity/me
+// @access  Private
+exports.getMyActivity = async (req, res) => {
+  try {
+    let activity = await UserActivity.findOne({ user: req.user.id })
+      .populate('badges.badgeId');
+
+    if (!activity) {
+      activity = await UserActivity.create({ user: req.user.id });
+    }
+
+    res.status(200).json({
+      success: true,
+      activity
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get activity statistics
+// @route   GET /api/activity/stats
+// @access  Private
+exports.getActivityStats = async (req, res) => {
+  try {
+    const activity = await UserActivity.findOne({ user: req.user.id });
+
+    if (!activity) {
+      return res.status(200).json({
+        success: true,
+        stats: {
+          totalTimeSpent: 0,
+          currentStreak: 0,
+          longestStreak: 0,
+          badgesEarned: 0,
+          dailyAverage: 0
+        }
+      });
+    }
+
+    // Calculate last 7 days activity
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const recentActivity = activity.dailyActivity.filter(
+      day => day.date >= sevenDaysAgo
+    );
+
+    const totalRecentMinutes = recentActivity.reduce(
+      (sum, day) => sum + day.duration, 0
+    );
+
+    const dailyAverage = recentActivity.length > 0 
+      ? Math.round(totalRecentMinutes / recentActivity.length) 
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalTimeSpent: activity.totalTimeSpent,
+        currentStreak: activity.streak.current,
+        longestStreak: activity.streak.longest,
+        badgesEarned: activity.badges.length,
+        dailyAverage,
+        last7Days: recentActivity
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Check and award badges
+// @route   POST /api/activity/check-badges
+// @access  Private
+exports.checkAndAwardBadges = async (req, res) => {
+  try {
+    const activity = await UserActivity.findOne({ user: req.user.id });
+    const user = await User.findById(req.user.id);
+
+    if (!activity) {
+      return res.status(404).json({
+        success: false,
+        message: 'Activity not found'
+      });
+    }
+
+    const badges = await Badge.find();
+    const newBadges = [];
+
+    for (const badge of badges) {
+      // Check if user already has this badge
+      const hasBadge = activity.badges.some(
+        b => b.badgeId.toString() === badge._id.toString()
+      );
+
+      if (hasBadge) continue;
+
+      let qualified = false;
+
+      // Check badge criteria
+      switch (badge.criteria.type) {
+        case 'activity-time':
+          // Check if user has spent enough time (e.g., 30 minutes daily for 7 days)
+          const recentDays = activity.dailyActivity.slice(-7);
+          const qualifyingDays = recentDays.filter(
+            day => day.duration >= badge.criteria.threshold
+          );
+          qualified = qualifyingDays.length >= 7;
+          break;
+
+        case 'streak':
+          qualified = activity.streak.current >= badge.criteria.threshold;
+          break;
+
+        case 'resources':
+          const totalResourceActions = activity.dailyActivity.reduce(
+            (sum, day) => sum + day.actions.resourcesViewed + day.actions.resourcesDownloaded,
+            0
+          );
+          qualified = totalResourceActions >= badge.criteria.threshold;
+          break;
+
+        case 'goals':
+          const totalGoalActions = activity.dailyActivity.reduce(
+            (sum, day) => sum + day.actions.goalsUpdated,
+            0
+          );
+          qualified = totalGoalActions >= badge.criteria.threshold;
+          break;
+
+        case 'posts':
+          const totalPosts = activity.dailyActivity.reduce(
+            (sum, day) => sum + day.actions.postsCreated,
+            0
+          );
+          qualified = totalPosts >= badge.criteria.threshold;
+          break;
+
+        case 'comments':
+          const totalComments = activity.dailyActivity.reduce(
+            (sum, day) => sum + day.actions.commentsAdded,
+            0
+          );
+          qualified = totalComments >= badge.criteria.threshold;
+          break;
+      }
+
+      if (qualified) {
+        activity.badges.push({
+          badgeId: badge._id,
+          earnedAt: new Date()
+        });
+
+        user.totalPoints += badge.points;
+        
+        newBadges.push(badge);
+      }
+    }
+
+    // Update user level based on points
+    user.level = Math.floor(user.totalPoints / 100) + 1;
+
+    await activity.save();
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: newBadges.length > 0 ? 'New badges earned!' : 'No new badges',
+      newBadges,
+      totalBadges: activity.badges.length,
+      level: user.level,
+      points: user.totalPoints
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get leaderboard
+// @route   GET /api/activity/leaderboard
+// @access  Public
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('name profilePicture totalPoints level')
+      .sort({ totalPoints: -1 })
+      .limit(50);
+
+    const activities = await UserActivity.find({
+      user: { $in: users.map(u => u._id) }
+    }).select('user badges streak');
+
+    const leaderboard = users.map(user => {
+      const activity = activities.find(
+        a => a.user.toString() === user._id.toString()
+      );
+
+      return {
+        user: {
+          id: user._id,
+          name: user.name,
+          profilePicture: user.profilePicture
+        },
+        points: user.totalPoints,
+        level: user.level,
+        badges: activity ? activity.badges.length : 0,
+        streak: activity ? activity.streak.current : 0
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      leaderboard
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
