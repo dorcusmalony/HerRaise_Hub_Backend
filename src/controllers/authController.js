@@ -46,7 +46,15 @@ function formatUserForResponse(userInstance) {
       : (u.interests && typeof u.interests === 'string' 
         ? u.interests.split(',').map(s => s.trim()).filter(Boolean) 
         : ['personal growth', 'career development']),
-    educationLevel: u.educationLevel || 'secondary'
+    educationLevel: u.educationLevel || 'secondary',
+    
+    // Add mentor-specific fields when applicable
+    ...(u.role === 'mentor' ? {
+      yearsOfExperience: u.yearsOfExperience || 0,
+      isVerified: u.isVerified || false,
+      verificationDate: u.verificationDate,
+      mentorProfile: u.MentorProfile || null
+    } : {})
   };
   return formatted;
 }
@@ -56,7 +64,7 @@ function formatUserForResponse(userInstance) {
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    // Accept extra mentee profile fields
+    // Accept extra profile fields
     const {
       name,
       email,
@@ -67,7 +75,16 @@ exports.register = async (req, res) => {
       location,
       dateOfBirth,
       interests,
-      educationLevel
+      educationLevel,
+      // Mentor-specific fields
+      yearsOfExperience,
+      expertise,
+      bio,
+      professionalTitle,
+      organization,
+      linkedinProfile,
+      educationHistory,
+      workHistory
     } = req.body;
 
     // Basic validation - prevent nulls in critical fields
@@ -121,11 +138,16 @@ exports.register = async (req, res) => {
       password,
       role: role || 'mentee',
       language: userLanguage,
-      phoneNumber: phoneNumber || '+211900000000', // Default placeholder number
+      phoneNumber: phoneNumber || '+211900000000',
       location: parsedLocation,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : defaultDOB,
       interests: interestsArr,
-      educationLevel: educationLevel || 'secondary'
+      educationLevel: educationLevel || 'secondary',
+      // Add mentor-specific fields if role is mentor
+      ...(role === 'mentor' ? {
+        yearsOfExperience: yearsOfExperience || 0,
+        isVerified: false // New mentors start unverified
+      } : {})
     };
 
     console.log('Creating user with data:', {
@@ -134,6 +156,26 @@ exports.register = async (req, res) => {
     });
     
     const user = await User.create(userData);
+
+    // If registering as mentor, create mentor profile
+    if (role === 'mentor') {
+      const { MentorProfile } = db.models;
+      await MentorProfile.create({
+        userId: user.id,
+        expertise: Array.isArray(expertise) ? expertise : (expertise ? [expertise] : []),
+        bio: bio || `Professional mentor with ${yearsOfExperience || 0} years of experience.`,
+        professionalTitle: professionalTitle || 'Professional Mentor',
+        organization: organization || '',
+        linkedinProfile: linkedinProfile || '',
+        educationHistory: Array.isArray(educationHistory) ? educationHistory : [],
+        workHistory: Array.isArray(workHistory) ? workHistory : []
+      });
+      
+      // Reload user to include mentor profile
+      await user.reload({
+        include: [{ model: MentorProfile }]
+      });
+    }
 
     const token = generateToken(user.id);
 
@@ -193,7 +235,19 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const User = await getUserModel();
-    const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
+    const { MentorProfile } = db.models;
+    
+    // Include mentor profile for mentors
+    const include = [];
+    if (req.user.role === 'mentor') {
+      include.push({ model: MentorProfile });
+    }
+    
+    const user = await User.findByPk(req.user.id, { 
+      attributes: { exclude: ['password'] },
+      include
+    });
+    
     res.status(200).json({ success: true, user: formatUserForResponse(user) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

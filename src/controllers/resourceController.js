@@ -14,16 +14,11 @@ exports.getResources = async (req, res) => {
     if (category) filter.category = category;
     if (language) filter.language = language;
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
-      ];
+      // Replace MongoDB query syntax with Sequelize syntax
+      filter.search = search;
     }
 
-    const resources = await Resource.find(filter)
-      .populate('uploadedBy', 'name profilePicture role')
-      .sort({ createdAt: -1 });
+    const resources = await Resource.find(filter);
 
     res.status(200).json({
       success: true,

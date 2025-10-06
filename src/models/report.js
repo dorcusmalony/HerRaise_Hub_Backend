@@ -16,12 +16,12 @@ module.exports = {
     const { Report } = await getModels();
     const r = await Report.create({
       reporterId: data.reporter,
-      type: data.type,
+      type: data.type || 'other', // Ensure a valid default
       description: data.description,
+      status: data.status || 'pending', // Ensure a valid default
       location: data.location,
       contact: data.contact,
       metadata: data.metadata || {},
-      status: data.status || 'open'
     });
     return wrapInstance(r);
   },

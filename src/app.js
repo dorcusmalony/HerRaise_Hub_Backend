@@ -7,7 +7,8 @@ const authRoutes = require('./routes/authRoutes');
 const goalRoutes = require('./routes/goalRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
 const activityRoutes = require('./routes/activityRoutes');
-const reportRoutes = require('./routes/reportRoutes'); // added
+const reportRoutes = require('./routes/reportRoutes');
+const mentorRoutes = require('./routes/mentorRoutes'); // Add mentor routes
 
 const app = express();
 
@@ -39,7 +40,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
-app.use('/api/reports', reportRoutes); // added
+app.use('/api/reports', reportRoutes);
+app.use('/api/mentors', mentorRoutes); // Add mentor routes
 
 // List routes for each mounted router (more reliable than scanning app._router.stack)
 function listMountedRoutes() {
@@ -49,7 +51,8 @@ function listMountedRoutes() {
       { prefix: '/api/goals', router: goalRoutes },
       { prefix: '/api/resources', router: resourceRoutes },
       { prefix: '/api/activity', router: activityRoutes },
-      { prefix: '/api/reports', router: reportRoutes }
+      { prefix: '/api/reports', router: reportRoutes },
+      { prefix: '/api/mentors', router: mentorRoutes } // Add to mounted routes list
     ];
 
     const out = [];
