@@ -14,7 +14,23 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+
+// Improve JSON body parsing with better error handling
+app.use(express.json({
+  verify: (req, res, buf, encoding) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Invalid JSON in request body',
+        error: e.message
+      });
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
@@ -82,12 +98,23 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
+// Improved error handler with more details
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
+  console.error('Error:', err.stack);
+  
+  // Handle JSON syntax errors
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid JSON in request body',
+      error: 'syntax_error'
+    });
+  }
+  
+  res.status(err.status || 500).json({ 
     success: false, 
-    message: err.message || 'Server Error' 
+    message: err.message || 'Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 
