@@ -31,7 +31,7 @@ function formatUserForResponse(userInstance) {
     email: u.email || null,
     role: u.role || 'mentee',
     profilePicture: u.profilePicture || null,
-    language: u.language || 'en', // Default language is 'en'
+    language: u.language || 'en', // Default to English if undefined
     phoneNumber: u.phoneNumber || '+211900000000', // Default placeholder number
     // ensure location is an object with default city/state if empty
     location: (u.location && typeof u.location === 'object' && Object.keys(u.location).length > 0) 
@@ -110,13 +110,17 @@ exports.register = async (req, res) => {
     const defaultDOB = new Date();
     defaultDOB.setFullYear(defaultDOB.getFullYear() - 18);
 
+    // Validate language input
+    const validLanguages = ['en', 'ar', 'juba-ar'];
+    const userLanguage = language && validLanguages.includes(language) ? language : 'en';
+
     // prepare user data with sensible defaults
     const userData = {
       name,
       email,
       password,
       role: role || 'mentee',
-      language: language || 'en',
+      language: userLanguage,
       phoneNumber: phoneNumber || '+211900000000', // Default placeholder number
       location: parsedLocation,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : defaultDOB,

@@ -60,6 +60,56 @@ const connectDB = async () => {
 	try {
 		await sequelize.authenticate();
 		console.log(' PostgreSQL (Sequelize) connected');
+		
+		// Check for existing Users table and fix ALL null values before sync
+		try {
+			// Check if table exists first to avoid errors on fresh installs
+			const [tables] = await sequelize.query(
+				"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Users'"
+			);
+			
+			if (tables.length > 0) {
+				// First check which columns exist and need fixes
+				const [columns] = await sequelize.query(
+					"SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name = 'Users'"
+				);
+				console.log(' Found Users table with columns:', columns.map(c => c.column_name).join(', '));
+				
+				// Fix any NULL values in required columns with a SINGLE update
+				// This ensures all fixes are applied in one go to prevent sync issues
+				await sequelize.query(`
+					UPDATE "Users" 
+					SET 
+						language = COALESCE(language, 'en'),
+						"phoneNumber" = COALESCE("phoneNumber", '+211900000000'),
+						"educationLevel" = COALESCE("educationLevel", 'secondary'),
+						"isActive" = COALESCE("isActive", true),
+						"totalPoints" = COALESCE("totalPoints", 0),
+						"level" = COALESCE("level", 1)
+					WHERE 
+						language IS NULL 
+						OR "phoneNumber" IS NULL
+						OR "educationLevel" IS NULL
+						OR "isActive" IS NULL
+						OR "totalPoints" IS NULL
+						OR "level" IS NULL
+				`);
+				console.log(' Fixed all NULL values in Users table required columns');
+				
+				// Verify the fix
+				const [nullCounts] = await sequelize.query(`
+					SELECT 
+						COUNT(*) FILTER (WHERE language IS NULL) as language_nulls,
+						COUNT(*) FILTER (WHERE "phoneNumber" IS NULL) as phone_nulls,
+						COUNT(*) FILTER (WHERE "educationLevel" IS NULL) as education_nulls
+					FROM "Users"
+				`);
+				console.log(' Null value check after fixes:', nullCounts[0]);
+			}
+		} catch (fixErr) {
+			console.warn(' Warning: Could not check/fix columns:', fixErr.message);
+			// Continue anyway, as the table might not exist yet in first run
+		}
 	} catch (error) {
 		console.error(' PostgreSQL connection error:', error.message);
 		process.exit(1);
@@ -84,7 +134,14 @@ const connectDB = async () => {
 		resetPasswordExpire: DataTypes.DATE,
 
 		// Ensure all mentee profile fields have proper defaults
-		language: { type: DataTypes.STRING, defaultValue: 'en', allowNull: false },
+		language: { 
+			type: DataTypes.STRING, 
+			defaultValue: 'en', 
+			allowNull: false,
+			validate: {
+				isIn: [['en', 'ar', 'juba-ar']] // English, Arabic, Juba Arabic
+			}
+		},
 		phoneNumber: { type: DataTypes.STRING, defaultValue: '+211900000000', allowNull: false },
 		location: { type: DataTypes.JSONB, defaultValue: { city: "Unknown", state: "Unknown" } },
 		dateOfBirth: {
