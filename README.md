@@ -1,4 +1,4 @@
-// ...existing code...
+
 
 # HerRaise_Hub_Backend
 
@@ -102,39 +102,10 @@ curl -X GET http://localhost:5000/api/auth/me \
   -H "Authorization: Bearer <your_jwt_token>" \
   -H "Content-Type: application/json"
 
----
 
-## Frontend integration (login & usage)
 
-1. Set API base URL in environment (e.g. REACT_APP_API_URL or VITE_API_URL).
 
-2. Login (fetch example)
-```javascript
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
-async function login(email, password) {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Login failed');
-  localStorage.setItem('authToken', data.token); // or store in memory
-  localStorage.setItem('user', JSON.stringify(data.user));
-  return data.user;
-}
-
-// Use token for protected requests
-async function apiGet(path) {
-  const token = localStorage.getItem('authToken');
-  return fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-  });
-}
-```
-
-3. Axios with interceptor:
+ Axios with interceptor:
 ```javascript
 import axios from 'axios';
 const api = axios.create({ baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000' });
@@ -162,28 +133,14 @@ Notes:
 
 ---
 
-## Useful files
-- App entry: [server.js](HerRaise_Hub_Backend/server.js) and [src/app.js](HerRaise_Hub_Backend/src/app.js)
-- Auth controller: [src/controllers/authController.js](HerRaise_Hub_Backend/src/controllers/authController.js)
-- Auth routes: [src/routes/authRoutes.js](HerRaise_Hub_Backend/src/routes/authRoutes.js)
-- Auth middleware: [src/middleware/auth.js](HerRaise_Hub_Backend/src/middleware/auth.js)
-- DB config & model definitions: [src/config/database.js](HerRaise_Hub_Backend/src/config/database.js)
-- Migrations: `db/migrations/`
 
----
 
 ## Running in Docker (recommended)
 - Build & start:
   docker-compose up --build
 - Dockerfile and docker-compose are provided. The docker-compose runs Postgres and the app. Default port: 5000.
 
----
 
-## Seeding
-- Badges seeding helper: [src/utils/seedBadges.js](HerRaise_Hub_Backend/src/utils/seedBadges.js)
-- Enable seeding by setting `SEED_BADGES=true` in `.env`.
-
----
 
 ## Troubleshooting
 - Port 5000 in use → run `npx kill-port 5000` or change the port.
