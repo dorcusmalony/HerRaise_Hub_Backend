@@ -1,8 +1,8 @@
-# Environment variables
-.env               <-- This ensures your .env file won't be pushed
+node_modules/
+.env
 
 # Dependencies
-node_modules/      <-- This ensures your node_modules won't be pushed
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
