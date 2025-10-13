@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const authRoutes = require('./routes/authRoutes');
-const goalRoutes = require('./routes/goalRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const reportRoutes = require('./routes/reportRoutes');
@@ -20,14 +19,15 @@ app.use(cors());
 app.use(express.json({
   verify: (req, res, buf, encoding) => {
     try {
-      JSON.parse(buf);
+      // buf is a Buffer; parse its string content
+      if (buf && buf.length) {
+        JSON.parse(buf.toString(encoding || 'utf8'));
+      }
     } catch (e) {
-      res.status(400).json({ 
-        success: false, 
-        message: 'Invalid JSON in request body',
-        error: e.message
-      });
-      throw new Error('Invalid JSON');
+      // Throw a SyntaxError so the error middleware handles the response consistently
+      const err = new SyntaxError('Invalid JSON in request body');
+      err.status = 400;
+      throw err;
     }
   }
 }));
@@ -37,7 +37,6 @@ app.use(morgan('dev'));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/goals', goalRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
@@ -48,7 +47,6 @@ function listMountedRoutes() {
   try {
     const mounted = [
       { prefix: '/api/auth', router: authRoutes },
-      { prefix: '/api/goals', router: goalRoutes },
       { prefix: '/api/resources', router: resourceRoutes },
       { prefix: '/api/activity', router: activityRoutes },
       { prefix: '/api/reports', router: reportRoutes },

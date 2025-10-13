@@ -38,8 +38,8 @@ exports.getResources = async (req, res) => {
 // @access  Public
 exports.getResource = async (req, res) => {
   try {
-    const resource = await Resource.findById(req.params.id)
-      .populate('uploadedBy', 'name profilePicture role');
+    // Resource.findById already returns the resource with included uploader (Sequelize include)
+    const resource = await Resource.findById(req.params.id);
 
     if (!resource) {
       return res.status(404).json({
