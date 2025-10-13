@@ -1,4 +1,4 @@
--- Recreate Reports table with proper enum types
+
 
 -- Backup existing data
 CREATE TEMP TABLE reports_backup AS
