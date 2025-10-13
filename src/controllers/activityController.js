@@ -7,8 +7,8 @@ const User = require('../models/user');
 // @access  Private
 exports.getMyActivity = async (req, res) => {
   try {
-    let activity = await UserActivity.findOne({ user: req.user.id })
-      .populate('badges.badgeId');
+    // Remove Mongoose .populate chain; model wrapper returns activity with badges JSONB
+    let activity = await UserActivity.findOne({ user: req.user.id });
 
     if (!activity) {
       activity = await UserActivity.create({ user: req.user.id });
@@ -96,13 +96,19 @@ exports.checkAndAwardBadges = async (req, res) => {
       });
     }
 
+    // Badge.find returns Sequelize instances
     const badges = await Badge.find();
     const newBadges = [];
 
-    for (const badge of badges) {
-      // Check if user already has this badge
-      const hasBadge = activity.badges.some(
-        b => b.badgeId.toString() === badge._id.toString()
+    for (const badgeInstance of badges) {
+      // Normalize badge object/fields for compatibility
+      const badgeId = badgeInstance.id || badgeInstance._id;
+      const criteria = badgeInstance.criteria || {};
+      const points = badgeInstance.points || 0;
+
+      // Check if user already has this badge (activity.badges stored as array of { badgeId, earnedAt })
+      const hasBadge = (activity.badges || []).some(
+        b => String(b.badgeId) === String(badgeId)
       );
 
       if (hasBadge) continue;
@@ -110,67 +116,68 @@ exports.checkAndAwardBadges = async (req, res) => {
       let qualified = false;
 
       // Check badge criteria
-      switch (badge.criteria.type) {
+      switch (criteria.type) {
         case 'activity-time':
-          // Check if user has spent enough time (e.g., 30 minutes daily for 7 days)
           const recentDays = activity.dailyActivity.slice(-7);
           const qualifyingDays = recentDays.filter(
-            day => day.duration >= badge.criteria.threshold
+            day => day.duration >= criteria.threshold
           );
           qualified = qualifyingDays.length >= 7;
           break;
 
         case 'streak':
-          qualified = activity.streak.current >= badge.criteria.threshold;
+          qualified = (activity.streak && activity.streak.current) >= criteria.threshold;
           break;
 
         case 'resources':
-          const totalResourceActions = activity.dailyActivity.reduce(
-            (sum, day) => sum + day.actions.resourcesViewed + day.actions.resourcesDownloaded,
+          const totalResourceActions = (activity.dailyActivity || []).reduce(
+            (sum, day) => sum + (day.actions?.resourcesViewed || 0) + (day.actions?.resourcesDownloaded || 0),
             0
           );
-          qualified = totalResourceActions >= badge.criteria.threshold;
+          qualified = totalResourceActions >= criteria.threshold;
           break;
 
         case 'goals':
-          const totalGoalActions = activity.dailyActivity.reduce(
-            (sum, day) => sum + day.actions.goalsUpdated,
+          const totalGoalActions = (activity.dailyActivity || []).reduce(
+            (sum, day) => sum + (day.actions?.goalsUpdated || 0),
             0
           );
-          qualified = totalGoalActions >= badge.criteria.threshold;
+          qualified = totalGoalActions >= criteria.threshold;
           break;
 
         case 'posts':
-          const totalPosts = activity.dailyActivity.reduce(
-            (sum, day) => sum + day.actions.postsCreated,
+          const totalPosts = (activity.dailyActivity || []).reduce(
+            (sum, day) => sum + (day.actions?.postsCreated || 0),
             0
           );
-          qualified = totalPosts >= badge.criteria.threshold;
+          qualified = totalPosts >= criteria.threshold;
           break;
 
         case 'comments':
-          const totalComments = activity.dailyActivity.reduce(
-            (sum, day) => sum + day.actions.commentsAdded,
+          const totalComments = (activity.dailyActivity || []).reduce(
+            (sum, day) => sum + (day.actions?.commentsAdded || 0),
             0
           );
-          qualified = totalComments >= badge.criteria.threshold;
+          qualified = totalComments >= criteria.threshold;
           break;
       }
 
       if (qualified) {
+        activity.badges = activity.badges || [];
         activity.badges.push({
-          badgeId: badge._id,
+          badgeId,
           earnedAt: new Date()
         });
 
-        user.totalPoints += badge.points;
+        // add points to user (Sequelize instance)
+        user.totalPoints = (user.totalPoints || 0) + points;
         
-        newBadges.push(badge);
+        newBadges.push(badgeInstance);
       }
     }
 
     // Update user level based on points
-    user.level = Math.floor(user.totalPoints / 100) + 1;
+    user.level = Math.floor((user.totalPoints || 0) / 100) + 1;
 
     await activity.save();
     await user.save();
@@ -179,7 +186,7 @@ exports.checkAndAwardBadges = async (req, res) => {
       success: true,
       message: newBadges.length > 0 ? 'New badges earned!' : 'No new badges',
       newBadges,
-      totalBadges: activity.badges.length,
+      totalBadges: (activity.badges || []).length,
       level: user.level,
       points: user.totalPoints
     });

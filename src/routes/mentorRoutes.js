@@ -6,8 +6,14 @@ const mentorController = require('../controllers/mentorController');
 // Get all verified mentors (public)
 router.get('/', mentorController.getMentors);
 
-// Get specific mentor (public)
-router.get('/:id', mentorController.getMentorById);
+// Get available mentors for matching (protected)
+router.get('/available', protect, mentorController.getAvailableMentors);
+
+// Get mentor's mentees (mentor only)
+router.get('/my-mentees', protect, authorize('mentor'), mentorController.getMentorMentees);
+
+// Request a mentor (mentee only)
+router.post('/request/:mentorId', protect, authorize('mentee'), mentorController.requestMentor);
 
 // Update mentor profile (mentor only)
 router.put('/profile', protect, authorize('mentor'), mentorController.updateMentorProfile);
@@ -15,13 +21,7 @@ router.put('/profile', protect, authorize('mentor'), mentorController.updateMent
 // Verify a mentor (admin only)
 router.put('/:id/verify', protect, authorize('admin'), mentorController.verifyMentor);
 
-// Get mentor's mentees (mentor only)
-router.get('/my-mentees', protect, authorize('mentor'), mentorController.getMentorMentees);
-
-// Get available mentors for matching (protected)
-router.get('/available', protect, mentorController.getAvailableMentors);
-
-// Request a mentor (mentee only)
-router.post('/request/:mentorId', protect, authorize('mentee'), mentorController.requestMentor);
+// Get specific mentor (public)
+router.get('/:id', mentorController.getMentorById);
 
 module.exports = router;

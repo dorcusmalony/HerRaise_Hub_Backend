@@ -21,8 +21,8 @@ exports.createReport = async (req, res) => {
       }
     });
 
-    // TODO: Send notification to moderation channel/email (implement provider)
-    console.log('New report created:', report._id);
+    // Log using Sequelize id field
+    console.log('New report created:', report.id);
 
     res.status(201).json({
       success: true,
@@ -47,10 +47,8 @@ exports.getReports = async (req, res) => {
     if (type) filter.type = type;
     if (reporter) filter.reporter = reporter;
 
-    const reports = await Report.find(filter)
-      .populate('reporter', 'name email profilePicture')
-      .populate('assignedTo', 'name email')
-      .sort({ createdAt: -1 });
+    // Report.find already includes reporter/assignedTo in model wrapper
+    const reports = await Report.find(filter);
 
     res.status(200).json({
       success: true,
@@ -68,9 +66,7 @@ exports.getReports = async (req, res) => {
 // Get single report (owner, mentor, admin)
 exports.getReport = async (req, res) => {
   try {
-    const report = await Report.findById(req.params.id)
-      .populate('reporter', 'name email profilePicture')
-      .populate('assignedTo', 'name email');
+    const report = await Report.findById(req.params.id);
 
     if (!report) {
       return res.status(404).json({ success: false, message: 'Report not found' });

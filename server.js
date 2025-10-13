@@ -4,8 +4,9 @@ process.env.DB_TYPE = 'postgres';
 const dbModule = require('./src/config/database');
 const seedBadges = require('./src/utils/seedBadges');
 
-// Force port 5000 only - no alternatives
-const PORT = 5000;
+
+// Use PORT from environment (Render sets this) with 5000 fallback
+const PORT = process.env.PORT || 5000;
 
 async function start() {
   try {
@@ -23,13 +24,13 @@ async function start() {
 
     const server = app.listen(PORT, () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-      console.log(`🔗 API URL: http://localhost:${PORT}/api`);
-      console.log(`🔗 Health URL: http://localhost:${PORT}/health`);
+      console.log(` API URL: http://localhost:${PORT}/api`);
+      console.log(` Health URL: http://localhost:${PORT}/health`);
     });
 
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use!`);
+        console.error(` Port ${PORT} is already in use!`);
         console.error('   Please use: npm run killport OR manually stop the process using port 5000');
         console.error('   Command to kill: npx kill-port 5000');
         process.exit(1);
