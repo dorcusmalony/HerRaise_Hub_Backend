@@ -1,4 +1,4 @@
--- Fix Reports table enum type issues by recreating it with standard column types
+
 
 -- Create a backup of reports data if the table exists
 DO $$

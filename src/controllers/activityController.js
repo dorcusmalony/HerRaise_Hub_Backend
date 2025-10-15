@@ -2,9 +2,7 @@ const UserActivity = require('../models/UserActivity');
 const Badge = require('../models/badges');
 const User = require('../models/user');
 
-// @desc    Get user activity
-// @route   GET /api/activity/me
-// @access  Private
+
 exports.getMyActivity = async (req, res) => {
   try {
     // Remove Mongoose .populate chain; model wrapper returns activity with badges JSONB
@@ -26,9 +24,7 @@ exports.getMyActivity = async (req, res) => {
   }
 };
 
-// @desc    Get activity statistics
-// @route   GET /api/activity/stats
-// @access  Private
+
 exports.getActivityStats = async (req, res) => {
   try {
     const activity = await UserActivity.findOne({ user: req.user.id });

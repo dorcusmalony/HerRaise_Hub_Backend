@@ -208,18 +208,52 @@ exports.login = async (req, res) => {
       attributes: { include: ['password'] }
     });
 
-    // If a user was found but password wasn't returned for some reason, attempt a reload
+    // If a user was found but password wasn't returned for some reason, attempt a reload and raw-check
     if (user && (user.password === undefined || user.password === null)) {
-      console.warn(`User record found for ${email} but password field missing — attempting reload`);
-      const reloaded = await User.findOne({
-        where: { email },
-        attributes: { include: ['password'] }
-      });
-      if (reloaded && reloaded.password) {
-        user = reloaded;
-      } else {
-        console.error(`Password field still missing for user ${email}`);
-        return res.status(500).json({ success: false, message: 'Account found but password not available. Contact support.' });
+      console.warn(`User record found for ${email} but password field missing on Sequelize instance — attempting fallback raw query`);
+
+      // Attempt a raw query to inspect the DB row for the password column (do not log the hash)
+      try {
+        const sequelize = db.sequelize || (await db.connectDB() && db.sequelize);
+        const { QueryTypes } = require('sequelize');
+
+        // Try multiple query variants to accommodate different table-name casing/quoting
+        const queries = [
+          'SELECT "password" FROM "Users" WHERE email = :email LIMIT 1',
+          'SELECT password FROM users WHERE email = :email LIMIT 1',
+          'SELECT password FROM "users" WHERE email = :email LIMIT 1'
+        ];
+
+        let row = null;
+        for (const q of queries) {
+          try {
+            const rows = await sequelize.query(q, { replacements: { email }, type: QueryTypes.SELECT });
+            if (Array.isArray(rows) && rows.length > 0) {
+              row = rows[0];
+              console.log(`Raw query succeeded using query variant: ${q.split('FROM')[1].trim().split(' ')[0]}`);
+              break;
+            }
+          } catch (qErr) {
+            // Try next variant silently but log at debug level
+            console.warn(`Raw query variant failed (${q.split('FROM')[1].trim().split(' ')[0]}):`, qErr.message);
+            continue;
+          }
+        }
+
+        if (row && row.password) {
+          console.log(`Password hash exists in DB for ${email}; attaching to instance for comparison.`);
+          // Attach the hash to the Sequelize instance so comparePassword can run
+          user.password = row.password;
+        } else {
+          console.error(`Password column missing or NULL for ${email}. This may indicate tables were not created or registration did not save a password.`);
+          return res.status(500).json({
+            success: false,
+            message: 'Account found but password data missing. Ensure the database tables exist and registrations correctly save passwords.'
+          });
+        }
+      } catch (rawErr) {
+        console.error('Raw DB query failed while checking password column:', rawErr && rawErr.message);
+        return res.status(500).json({ success: false, message: 'Internal error while verifying account. Contact support.' });
       }
     }
 

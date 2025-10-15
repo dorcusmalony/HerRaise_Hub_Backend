@@ -7,48 +7,54 @@ const authRoutes = require('./routes/authRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const reportRoutes = require('./routes/reportRoutes');
-const mentorRoutes = require('./routes/mentorRoutes'); // Add mentor routes
+const mentorRoutes = require('./routes/mentorRoutes');
+const debugRoutes = require('./routes/debugRoutes');
 
 const app = express();
 
-// Middleware
+// ------------------ SECURITY & LOGGING ------------------
 app.use(helmet());
+app.use(morgan('dev'));
+
+// ------------------ CORS CONFIG ------------------
 app.use(cors({
   origin: [
-    'https://herraise-hub-frontend.vercel.app', // ✅ replace with your actual Vercel URL
+    'https://her-raise-hub.vercel.app',   // ✅ your deployed frontend
+    'http://localhost:5173',              // ✅ local dev (Vite or React)
   ],
-  credentials: true, // if your frontend uses cookies or auth headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
+// Handle preflight requests globally
+app.options('*', cors());
 
-// Improve JSON body parsing with better error handling
+// ------------------ BODY PARSING ------------------
 app.use(express.json({
   verify: (req, res, buf, encoding) => {
     try {
-      // buf is a Buffer; parse its string content
       if (buf && buf.length) {
         JSON.parse(buf.toString(encoding || 'utf8'));
       }
     } catch (e) {
-      // Throw a SyntaxError so the error middleware handles the response consistently
       const err = new SyntaxError('Invalid JSON in request body');
       err.status = 400;
       throw err;
     }
   }
 }));
-
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
 
-// Routes
+// ------------------ ROUTES ------------------
 app.use('/api/auth', authRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/mentors', mentorRoutes); // Add mentor routes
+app.use('/api/mentors', mentorRoutes);
+app.use('/api/debug', debugRoutes);
 
-// List routes for each mounted router (more reliable than scanning app._router.stack)
+// ------------------ ROUTE LIST DEBUGGER ------------------
 function listMountedRoutes() {
   try {
     const mounted = [
@@ -56,7 +62,7 @@ function listMountedRoutes() {
       { prefix: '/api/resources', router: resourceRoutes },
       { prefix: '/api/activity', router: activityRoutes },
       { prefix: '/api/reports', router: reportRoutes },
-      { prefix: '/api/mentors', router: mentorRoutes } // Add to mounted routes list
+      { prefix: '/api/mentors', router: mentorRoutes },
     ];
 
     const out = [];
@@ -66,12 +72,10 @@ function listMountedRoutes() {
         return;
       }
       router.stack.forEach(layer => {
-        // layer.route exists for direct routes on the router
         if (layer.route && layer.route.path) {
           const methods = Object.keys(layer.route.methods || {}).map(m => m.toUpperCase()).join(',');
           out.push(`${methods} ${prefix}${layer.route.path}`);
         } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
-          // nested router - iterate inner stack
           layer.handle.stack.forEach(inner => {
             if (inner.route && inner.route.path) {
               const methods = Object.keys(inner.route.methods || {}).map(m => m.toUpperCase()).join(',');
@@ -82,46 +86,45 @@ function listMountedRoutes() {
       });
     });
 
-    console.log('Mounted routes:\n', out.join('\n') || '(none)');
+    console.log('✅ Mounted routes:\n', out.join('\n') || '(none)');
   } catch (e) {
     console.warn('Could not list mounted routes:', e && e.message);
   }
 }
 listMountedRoutes();
 
-// Health check
+// ------------------ HEALTH CHECK ------------------
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
-// 404 handler (improved message for easier debugging)
+// ------------------ 404 HANDLER ------------------
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
     method: req.method,
     path: req.originalUrl,
-    hint: 'Confirm you are using the /api/* prefix (eg. /api/auth/register) and the correct HTTP method'
+    hint: 'Confirm you are using the /api/* prefix (e.g., /api/auth/login)',
   });
 });
 
-// Improved error handler with more details
+// ------------------ ERROR HANDLER ------------------
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
+  console.error(' Error:', err.stack);
   
-  // Handle JSON syntax errors
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    return res.status(400).json({ 
-      success: false, 
+    return res.status(400).json({
+      success: false,
       message: 'Invalid JSON in request body',
-      error: 'syntax_error'
+      error: 'syntax_error',
     });
   }
-  
-  res.status(err.status || 500).json({ 
-    success: false, 
+
+  res.status(err.status || 500).json({
+    success: false,
     message: err.message || 'Server Error',
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 });
 
