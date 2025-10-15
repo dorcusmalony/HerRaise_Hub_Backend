@@ -8,7 +8,7 @@ const resourceRoutes = require('./routes/resourceRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const mentorRoutes = require('./routes/mentorRoutes');
-const debugRoutes = require('./routes/debugRoutes');
+
 
 const app = express();
 
@@ -52,9 +52,8 @@ app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
-app.use('/api/debug', debugRoutes);
 
-// ------------------ ROUTE LIST DEBUGGER ------------------
+
 function listMountedRoutes() {
   try {
     const mounted = [
