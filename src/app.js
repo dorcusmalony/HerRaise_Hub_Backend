@@ -13,7 +13,13 @@ const app = express();
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://herraise-hub-frontend.vercel.app', // ✅ replace with your actual Vercel URL
+  ],
+  credentials: true, // if your frontend uses cookies or auth headers
+}));
+
 
 // Improve JSON body parsing with better error handling
 app.use(express.json({
