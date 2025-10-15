@@ -201,14 +201,37 @@ exports.login = async (req, res) => {
     }
 
     const User = await getUserModel();
-    // Get all attributes and include password separately for authentication
-    const user = await User.findOne({
+
+    // Try to fetch user including password for authentication
+    let user = await User.findOne({
       where: { email },
-      attributes: { include: ['password'] } // This will include password with all other fields
+      attributes: { include: ['password'] }
     });
 
+    // If a user was found but password wasn't returned for some reason, attempt a reload
+    if (user && (user.password === undefined || user.password === null)) {
+      console.warn(`User record found for ${email} but password field missing — attempting reload`);
+      const reloaded = await User.findOne({
+        where: { email },
+        attributes: { include: ['password'] }
+      });
+      if (reloaded && reloaded.password) {
+        user = reloaded;
+      } else {
+        console.error(`Password field still missing for user ${email}`);
+        return res.status(500).json({ success: false, message: 'Account found but password not available. Contact support.' });
+      }
+    }
+
     if (!user) {
+      // Do not reveal whether email exists — keep generic for security
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    // Ensure comparePassword exists on the instance
+    if (typeof user.comparePassword !== 'function') {
+      console.error('comparePassword not available on User model instance for', email);
+      return res.status(500).json({ success: false, message: 'Authentication not available. Contact support.' });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -225,6 +248,7 @@ exports.login = async (req, res) => {
       user: formatUserForResponse(user)
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
