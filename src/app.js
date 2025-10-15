@@ -27,8 +27,13 @@ app.use(cors({
   credentials: true,
 }));
 
-// Handle preflight requests globally
-app.options('*', cors());
+
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return cors()(req, res, next);
+  }
+  next();
+});
 
 // ------------------ BODY PARSING ------------------
 app.use(express.json({
