@@ -35,74 +35,148 @@ const connectDB = async () => {
   const dbHost = process.env.POSTGRES_HOST || 'localhost';
   const dbPort = process.env.POSTGRES_PORT || 5432;
 
-  try {
-    await ensureDatabaseExists({ dbName, dbUser, dbPass, dbHost, dbPort });
-  } catch (err) {
-    console.error(' Could not ensure database exists. Check Postgres credentials and permissions.');
-    process.exit(1);
-  }
+  // New: respect DATABASE_URL and safety flags for managed hosts (Render)
+  const databaseUrl = process.env.DATABASE_URL || null;
+  const allowDbCreate = (process.env.DB_ALLOW_CREATE || 'false').toLowerCase() === 'true';
+  const forceRecreateReports = (process.env.FORCE_RECREATE_REPORTS || 'false').toLowerCase() === 'true';
+  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
-  sequelize = new Sequelize(dbName, dbUser, dbPass, {
+  let sequelizeOptions = {
     host: dbHost,
     port: dbPort,
     dialect: 'postgres',
-    logging: false
-  });
+    logging: false,
+  };
 
-  try {
-    await sequelize.authenticate();
-    console.log(' PostgreSQL (Sequelize) connected');
-
-    // Attempt to fix NULLs in Users if table exists
-    try {
-      const [tables] = await sequelize.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Users'"
-      );
-
-      if (tables.length > 0) {
-        const [columns] = await sequelize.query(
-          "SELECT column_name FROM information_schema.columns WHERE table_name = 'Users'"
-        );
-        console.log(' Found Users table with columns:', columns.map(c => c.column_name).join(', '));
-
-        await sequelize.query(`
-          UPDATE "Users" 
-          SET 
-            language = COALESCE(language, 'en'),
-            "phoneNumber" = COALESCE("phoneNumber", '+211900000000'),
-            "educationLevel" = COALESCE("educationLevel", 'secondary'),
-            "isActive" = COALESCE("isActive", true),
-            "totalPoints" = COALESCE("totalPoints", 0),
-            "level" = COALESCE("level", 1)
-          WHERE 
-            language IS NULL 
-            OR "phoneNumber" IS NULL
-            OR "educationLevel" IS NULL
-            OR "isActive" IS NULL
-            OR "totalPoints" IS NULL
-            OR "level" IS NULL
-        `);
-        const [nullCounts] = await sequelize.query(`
-          SELECT 
-            COUNT(*) FILTER (WHERE language IS NULL) as language_nulls,
-            COUNT(*) FILTER (WHERE "phoneNumber" IS NULL) as phone_nulls,
-            COUNT(*) FILTER (WHERE "educationLevel" IS NULL) as education_nulls
-          FROM "Users"
-        `);
-        console.log(' Null value check after fixes:', nullCounts[0]);
+  // If using DATABASE_URL or running in production, enable SSL (common on Render)
+  if (databaseUrl || isProduction) {
+    sequelizeOptions.dialectOptions = {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
       }
-    } catch (fixErr) {
-      console.warn(' Warning: Could not check/fix Users columns:', fixErr.message);
+    };
+  }
+
+  let sequelize;
+
+  // helper to attempt authentication with retries
+  async function tryAuthenticate(instance, maxRetries = 5, retryDelayMs = 2000) {
+    let attempt = 0;
+    while (attempt < maxRetries) {
+      try {
+        await instance.authenticate();
+        return true;
+      } catch (err) {
+        attempt++;
+        console.warn(` Sequelize connection attempt ${attempt} failed: ${err.message}`);
+        if (attempt >= maxRetries) {
+          return err; // return last error
+        }
+        await new Promise(res => setTimeout(res, retryDelayMs));
+      }
+    }
+    return new Error('Unknown auth error');
+  }
+
+  // If a DATABASE_URL is provided prefer it, but fall back to individual POSTGRES_* values if unreachable
+  if (databaseUrl) {
+    sequelize = new Sequelize(databaseUrl, sequelizeOptions);
+    console.log(' Using DATABASE_URL for connection (e.g. Render). Attempting to connect...');
+    const authResult = await tryAuthenticate(sequelize, parseInt(process.env.DB_CONNECT_RETRIES, 10) || 5, parseInt(process.env.DB_CONNECT_RETRY_DELAY_MS, 10) || 2000);
+    if (authResult === true) {
+      console.log(' PostgreSQL (Sequelize) connected via DATABASE_URL');
+    } else {
+      console.warn(' Failed to connect using DATABASE_URL:', authResult.message || authResult);
+      // Try fallback using explicit POSTGRES_* env values (common for local development)
+      console.log(' Attempting fallback connection using POSTGRES_HOST/POSTGRES_USER/POSTGRES_DB ...');
+      // For local fallback, avoid forcing SSL which can block local connections
+      const fallbackOptions = { ...sequelizeOptions };
+      delete fallbackOptions.dialectOptions;
+      sequelize = new Sequelize(dbName, dbUser, dbPass, { ...fallbackOptions, host: dbHost, port: dbPort });
+      const fallbackAuth = await tryAuthenticate(sequelize, parseInt(process.env.DB_CONNECT_RETRIES, 10) || 5, parseInt(process.env.DB_CONNECT_RETRY_DELAY_MS, 10) || 2000);
+      if (fallbackAuth !== true) {
+        console.error(' Sequelize could not connect to either DATABASE_URL or the POSTGRES_* fallback after retries.');
+        console.error(' Last error:', fallbackAuth && fallbackAuth.message ? fallbackAuth.message : fallbackAuth);
+        process.exit(1);
+      } else {
+        console.log(' PostgreSQL (Sequelize) connected using POSTGRES_* fallback. If you intended to use Render DB, ensure DATABASE_URL is reachable from this machine.');
+      }
+    }
+  } else {
+    // No DATABASE_URL - normal behavior: optionally ensure DB exists then connect using individual vars
+    if (allowDbCreate) {
+      try {
+        await ensureDatabaseExists({ dbName, dbUser, dbPass, dbHost, dbPort });
+      } catch (err) {
+        console.error(' Could not ensure database exists. Check Postgres credentials and permissions.');
+        process.exit(1);
+      }
+    } else {
+      console.log(' DB creation skipped. Set DB_ALLOW_CREATE=true to enable creating the DB from app (not recommended on managed providers).');
     }
 
-    // Handle legacy Reports enum issues by dropping table if present (backup first)
-    try {
-      const [reportsTables] = await sequelize.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Reports'"
-      );
+    sequelize = new Sequelize(dbName, dbUser, dbPass, sequelizeOptions);
+    console.log(' Attempting to connect using POSTGRES_* settings...');
+    const authResult = await tryAuthenticate(sequelize, parseInt(process.env.DB_CONNECT_RETRIES, 10) || 5, parseInt(process.env.DB_CONNECT_RETRY_DELAY_MS, 10) || 2000);
+    if (authResult !== true) {
+      console.error(' Sequelize could not connect to the database after retries:', authResult && authResult.message ? authResult.message : authResult);
+      process.exit(1);
+    }
+    console.log(' PostgreSQL (Sequelize) connected');
+  }
 
-      if (reportsTables.length > 0) {
-        console.log(' Found Reports table with enum issue, dropping and recreating...');
+  // Attempt to fix NULLs in Users if table exists
+  try {
+    const [tables] = await sequelize.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Users'"
+    );
+
+    if (tables.length > 0) {
+      const [columns] = await sequelize.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'Users'"
+      );
+      console.log(' Found Users table with columns:', columns.map(c => c.column_name).join(', '));
+
+      await sequelize.query(`
+        UPDATE "Users" 
+        SET 
+          language = COALESCE(language, 'en'),
+          "phoneNumber" = COALESCE("phoneNumber", '+211900000000'),
+          "educationLevel" = COALESCE("educationLevel", 'secondary'),
+          "isActive" = COALESCE("isActive", true),
+          "totalPoints" = COALESCE("totalPoints", 0),
+          "level" = COALESCE("level", 1)
+        WHERE 
+          language IS NULL 
+          OR "phoneNumber" IS NULL
+          OR "educationLevel" IS NULL
+          OR "isActive" IS NULL
+          OR "totalPoints" IS NULL
+          OR "level" IS NULL
+      `);
+      const [nullCounts] = await sequelize.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE language IS NULL) as language_nulls,
+          COUNT(*) FILTER (WHERE "phoneNumber" IS NULL) as phone_nulls,
+          COUNT(*) FILTER (WHERE "educationLevel" IS NULL) as education_nulls
+        FROM "Users"
+      `);
+      console.log(' Null value check after fixes:', nullCounts[0]);
+    }
+  } catch (fixErr) {
+    console.warn(' Warning: Could not check/fix Users columns:', fixErr.message);
+  }
+
+  // Handle legacy Reports enum issues by dropping table if present (backup first)
+  try {
+    const [reportsTables] = await sequelize.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Reports'"
+    );
+
+    if (reportsTables.length > 0) {
+      if (forceRecreateReports) {
+        console.log(' Found Reports table. FORCE_RECREATE_REPORTS=true -> recreating Reports (backup will be created).');
         await sequelize.query(`
           CREATE TEMP TABLE IF NOT EXISTS reports_backup AS
           SELECT * FROM "Reports";
@@ -116,13 +190,12 @@ const connectDB = async () => {
           DROP TYPE IF EXISTS enum_Reports_status CASCADE;
         `).catch(() => {});
         console.log(' Reports table and enum types dropped successfully');
+      } else {
+        console.log(' Reports table exists. Not dropping in production. Set FORCE_RECREATE_REPORTS=true to force recreation (destructive).');
       }
-    } catch (reportFixErr) {
-      console.warn(' Warning: Error handling Reports table:', reportFixErr && reportFixErr.message);
     }
-  } catch (error) {
-    console.error(' PostgreSQL connection error:', error.message);
-    process.exit(1);
+  } catch (reportFixErr) {
+    console.warn(' Warning: Error handling Reports table:', reportFixErr && reportFixErr.message);
   }
 
   // Define models
@@ -271,15 +344,22 @@ const connectDB = async () => {
     MentorProfile
   };
 
-  // Sync models: non-Report first, then recreate Report
+  // Sync models: non-Report first, then recreate Report only if forced
   try {
     for (const modelName of Object.keys(exportedModels)) {
       if (modelName === 'Report') continue;
       await exportedModels[modelName].sync({ alter: true });
     }
 
-    await Report.sync({ force: true });
-    console.log(' Reports table recreated successfully');
+    if (forceRecreateReports) {
+      await Report.sync({ force: true });
+      console.log(' Reports table recreated successfully (force).');
+    } else {
+      // safer: alter rather than force to avoid accidental data loss on managed DBs
+      await Report.sync({ alter: true });
+      console.log(' Reports table synced (alter).');
+    }
+
     console.log(' Sequelize models synced (tables created/updated)');
   } catch (syncErr) {
     console.error(' Sequelize sync error:', syncErr && syncErr.message);
