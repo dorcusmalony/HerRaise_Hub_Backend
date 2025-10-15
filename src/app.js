@@ -68,6 +68,25 @@ app.all('/login', (req, res) => {
   });
 });
 
+// Informative handler for requests to /register (avoid confusing 404s)
+app.all('/register', (req, res) => {
+  return res.status(400).json({
+    success: false,
+    message: 'This backend does not serve the frontend register page.',
+    suggestion: 'Open the frontend app (e.g. https://her-raise-hub.vercel.app/register), or register via the API:',
+    api: { method: 'POST', path: '/api/auth/register' },
+  });
+});
+
+// Optional: quick root hint for browser visits to the backend root
+app.get('/', (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: 'This is the API backend. The frontend lives elsewhere.',
+    hint: 'Use POST /api/auth/login or POST /api/auth/register for authentication. Visit your frontend for the UI.',
+  });
+});
+
 function listMountedRoutes() {
   try {
     const mounted = [
