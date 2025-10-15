@@ -58,6 +58,15 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
 
+// Informative handler for requests to /login (avoid confusing 404s when someone visits backend URL)
+app.all('/login', (req, res) => {
+  return res.status(400).json({
+    success: false,
+    message: 'This backend does not serve the frontend login page.',
+    suggestion: 'Open the frontend app (e.g. https://her-raise-hub.vercel.app/login), or authenticate via the API:',
+    api: { method: 'POST', path: '/api/auth/login' },
+  });
+});
 
 function listMountedRoutes() {
   try {
