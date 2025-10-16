@@ -18,9 +18,10 @@ app.use(morgan('dev'));
 
 // ------------------ CORS CONFIG ------------------
 const DEFAULT_FRONTENDS = [
-  'https://her-raise-hub.vercel.app',   // existing deployed frontend
-  'http://localhost:5173',              // local dev
-  'https://her-raise-qywpgby4w-dorcus-projects-926b115e.vercel.app', // added from browser error
+  'https://her-raise-hub.vercel.app',
+  'http://localhost:5173',
+  'https://her-raise-qywpgby4w-dorcus-projects-926b115e.vercel.app',
+  'https://her-raise-pyaoi58m4-dorcus-projects-926b115e.vercel.app', // ADD THIS LINE
 ];
 
 const envOrigins = (process.env.FRONTEND_URLS || '')
