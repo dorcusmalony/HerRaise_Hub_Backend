@@ -67,6 +67,20 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 
+// ------------------ DEBUG LOGGING ------------------
+// Log all API requests for debugging (remove in production or gate with NODE_ENV check)
+app.use('/api', (req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path}`, {
+    body: req.method !== 'GET' ? req.body : undefined,
+    query: Object.keys(req.query).length ? req.query : undefined,
+    headers: {
+      'content-type': req.get('content-type'),
+      'authorization': req.get('authorization') ? '(present)' : '(missing)',
+    },
+  });
+  next();
+});
+
 // ------------------ ROUTES ------------------
 
 // TEMPORARY FIX: If VITE_API_URL includes /api/auth, requests for other routes like /api/resources
