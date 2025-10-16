@@ -68,6 +68,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // ------------------ ROUTES ------------------
 
+// TEMPORARY FIX: If VITE_API_URL includes /api/auth, requests for other routes like /api/resources
+// might arrive as /api/auth/api/resources. This middleware corrects that.
+app.use((req, res, next) => {
+  const wrongPrefix = '/api/auth/api/';
+  if (req.path.startsWith(wrongPrefix)) {
+    const correctPath = req.path.substring(wrongPrefix.length - 1); // Keep the leading '/'
+    // Use 307 to preserve method and body
+    return res.redirect(307, correctPath);
+  }
+  next();
+});
+
 // TEMPORARY FIX: Redirect incorrect /api/auth/signup calls from the frontend to the correct endpoint.
 app.all('/api/auth/signup', (req, res) => {
   // Use a 307 redirect to preserve the request method (e.g., POST) and body.
