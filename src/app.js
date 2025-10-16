@@ -82,7 +82,13 @@ app.get('/login', (req, res) => {
   return res.redirect(302, `${FRONTEND_URL}/login`);
 });
 app.all('/login', (req, res) => {
-  // For non-GET (e.g. someone probing via curl), return a clear API hint.
+  // If the frontend (or a client) POSTs directly to /login, forward it to the API auth route.
+  if (req.method === 'POST') {
+    // Use 307 to preserve method and body when redirecting
+    return res.redirect(307, '/api/auth/login');
+  }
+
+  // For non-POST (e.g. someone probing via curl), return a clear API hint.
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend login page.',
@@ -95,6 +101,12 @@ app.get('/register', (req, res) => {
   return res.redirect(302, `${FRONTEND_URL}/register`);
 });
 app.all('/register', (req, res) => {
+  // If the frontend (or a client) POSTs directly to /register, forward it to the API auth route.
+  if (req.method === 'POST') {
+    // Use 307 to preserve method and body when redirecting
+    return res.redirect(307, '/api/auth/register');
+  }
+
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend register page.',
