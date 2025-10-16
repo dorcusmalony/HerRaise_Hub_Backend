@@ -80,6 +80,24 @@ exports.protect = async (req, res, next) => {
   }
 };
 
+// Alias for compatibility with different naming conventions
+exports.authMiddleware = exports.protect;
+
+// usage: authorize('mentor','admin')
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: `Access denied: Required role: ${roles.join(', ')}, your role: ${req.user.role}` 
+      });
+    }
+    next();
+  };
+};
 // usage: authorize('mentor','admin')
 exports.authorize = (...roles) => {
   return (req, res, next) => {

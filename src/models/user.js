@@ -11,6 +11,41 @@ async function getUserModel() {
   }
   return db.models.User;
 }
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['mentee', 'mentor', 'admin'], default: 'mentee' },
+  
+  // Profile fields
+  bio: { type: String, maxlength: 500 },
+  phoneNumber: { type: String },
+  location: {
+    city: { type: String },
+    state: { type: String }
+  },
+  dateOfBirth: { type: String }, // or Date type
+  interests: [{ type: String }],
+  educationLevel: { 
+    type: String, 
+    enum: ['', 'secondary', 'bachelor', 'master', 'phd', 'other'] 
+  },
+  profilePicture: { type: String }, // URL to image
+  
+  language: { type: String, default: 'en' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+// Update timestamp on save
+userSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+module.exports = mongoose.model('User', userSchema);
 
 // Utility to parse Mongoose-style projection strings into Sequelize attributes
 function parseProjection(proj) {

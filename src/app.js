@@ -8,7 +8,7 @@ const resourceRoutes = require('./routes/resourceRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const mentorRoutes = require('./routes/mentorRoutes');
-
+const profileRoutes = require('./routes/profileRoutes');
 
 const app = express();
 
@@ -67,6 +67,10 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 
+// ------------------ STATIC FILES ------------------
+// Serve uploaded files (only needed if using local storage)
+app.use('/uploads', express.static('uploads'));
+
 // ------------------ DEBUG LOGGING ------------------
 // Log all API requests for debugging (remove in production or gate with NODE_ENV check)
 app.use('/api', (req, res, next) => {
@@ -102,6 +106,7 @@ app.all('/api/auth/signup', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
@@ -160,6 +165,7 @@ function listMountedRoutes() {
   try {
     const mounted = [
       { prefix: '/api/auth', router: authRoutes },
+      { prefix: '/api/profile', router: profileRoutes },
       { prefix: '/api/resources', router: resourceRoutes },
       { prefix: '/api/activity', router: activityRoutes },
       { prefix: '/api/reports', router: reportRoutes },
