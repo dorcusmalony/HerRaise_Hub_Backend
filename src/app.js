@@ -67,6 +67,13 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true }));
 
 // ------------------ ROUTES ------------------
+
+// TEMPORARY FIX: Redirect incorrect /api/auth/signup calls from the frontend to the correct endpoint.
+app.all('/api/auth/signup', (req, res) => {
+  // Use a 307 redirect to preserve the request method (e.g., POST) and body.
+  return res.redirect(307, '/api/auth/register');
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
