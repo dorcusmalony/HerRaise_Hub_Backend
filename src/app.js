@@ -49,8 +49,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// enable preflight responses for all routes
-app.options('*', cors(corsOptions));
 
 // ------------------ BODY PARSING ------------------
 app.use(express.json({
