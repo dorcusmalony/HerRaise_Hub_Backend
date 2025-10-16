@@ -17,23 +17,40 @@ app.use(helmet());
 app.use(morgan('dev'));
 
 // ------------------ CORS CONFIG ------------------
-app.use(cors({
-  origin: [
-    'https://her-raise-hub.vercel.app',   // ✅ your deployed frontend
-    'http://localhost:5173',              // ✅ local dev (Vite or React)
-  ],
+const DEFAULT_FRONTENDS = [
+  'https://her-raise-hub.vercel.app',   // existing deployed frontend
+  'http://localhost:5173',              // local dev
+  'https://her-raise-qywpgby4w-dorcus-projects-926b115e.vercel.app', // added from browser error
+];
+
+const envOrigins = (process.env.FRONTEND_URLS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const allowedOrigins = [...DEFAULT_FRONTENDS, ...envOrigins];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // allow requests with no origin (e.g., curl, mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // allow exact-origin matches
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // allow vercel.app subdomains (useful if frontend is deployed under different vercel subdomains)
+    if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-}));
+};
 
-
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    return cors()(req, res, next);
-  }
-  next();
-});
+app.use(cors(corsOptions));
+// enable preflight responses for all routes
+app.options('*', cors(corsOptions));
 
 // ------------------ BODY PARSING ------------------
 app.use(express.json({
@@ -58,27 +75,47 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
 
-// Informative handler for requests to /login (avoid confusing 404s when someone visits backend URL)
+// Redirect GET visits to /login and /register to the frontend UI, but keep informative JSON for other methods.
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app').replace(/\/$/, '');
+
+app.get('/login', (req, res) => {
+  return res.redirect(302, `${FRONTEND_URL}/login`);
+});
 app.all('/login', (req, res) => {
+  // If the frontend (or a client) POSTs directly to /login, forward it to the API auth route.
+  if (req.method === 'POST') {
+    // Use 307 to preserve method and body when redirecting
+    return res.redirect(307, '/api/auth/login');
+  }
+
+  // For non-POST (e.g. someone probing via curl), return a clear API hint.
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend login page.',
-    suggestion: 'Open the frontend app (e.g. https://her-raise-hub.vercel.app/login), or authenticate via the API:',
+    suggestion: `Open the frontend app (${FRONTEND_URL}/login) or POST to /api/auth/login`,
     api: { method: 'POST', path: '/api/auth/login' },
   });
 });
 
-// Informative handler for requests to /register (avoid confusing 404s)
+app.get('/register', (req, res) => {
+  return res.redirect(302, `${FRONTEND_URL}/register`);
+});
 app.all('/register', (req, res) => {
+  // If the frontend (or a client) POSTs directly to /register, forward it to the API auth route.
+  if (req.method === 'POST') {
+    // Use 307 to preserve method and body when redirecting
+    return res.redirect(307, '/api/auth/register');
+  }
+
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend register page.',
-    suggestion: 'Open the frontend app (e.g. https://her-raise-hub.vercel.app/register), or register via the API:',
+    suggestion: `Open the frontend app (${FRONTEND_URL}/register) or POST to /api/auth/register`,
     api: { method: 'POST', path: '/api/auth/register' },
   });
 });
 
-// Optional: quick root hint for browser visits to the backend root
+// Optional root hint preserved (still helpful for direct visits)
 app.get('/', (req, res) => {
   return res.status(200).json({
     success: true,
