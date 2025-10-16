@@ -16,18 +16,7 @@ const imageFilter = (req, file, cb) => {
   cb(new Error('Only image files (jpeg, jpg, png, gif, webp) are allowed'));
 };
 
-const cloudinaryUpload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: imageFilter,
-});
-
-module.exports = {
-  uploadSingle: cloudinaryUpload.single('profilePicture'),
-  uploadMultiple: cloudinaryUpload.array('images', 10),
-};
-
-// Document file filter for documents
+// File filter for documents
 const documentFilter = (req, file, cb) => {
   const allowedTypes = /pdf|doc|docx|txt/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -39,48 +28,22 @@ const documentFilter = (req, file, cb) => {
   cb(new Error('Only document files (pdf, doc, docx, txt) are allowed'));
 };
 
-// S3 upload configuration
-const uploadToS3 = multer({
-  storage: multerS3({
-    s3: s3Client,
-    bucket: process.env.AWS_S3_BUCKET_NAME,
-    acl: 'public-read',
-    metadata: (req, file, cb) => {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, `uploads/${uniqueSuffix}-${file.originalname}`);
-    },
-  }),
+// Multer configuration for Cloudinary upload
+const cloudinaryUpload = multer({
+  storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: imageFilter,
 });
 
-// Local storage fallback (for development)
-const localStorage = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, uniqueSuffix + path.extname(file.originalname));
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: imageFilter,
+const documentUpload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for documents
+  fileFilter: documentFilter,
 });
 
-// Export based on environment
-const upload = process.env.USE_S3 === 'true' ? uploadToS3 : localStorage;
-
 module.exports = {
-  uploadSingle: upload.single('file'),
-  uploadProfilePicture: upload.single('profilePicture'),
-  uploadMultiple: upload.array('files', 10),
-  uploadFields: upload.fields([
-    { name: 'profilePicture', maxCount: 1 },
-    { name: 'documents', maxCount: 5 },
-  ]),
+  uploadSingle: cloudinaryUpload.single('profilePicture'),
+  uploadMultiple: cloudinaryUpload.array('images', 10),
+  uploadDocument: documentUpload.single('document'),
+  uploadDocuments: documentUpload.array('documents', 5),
 };
