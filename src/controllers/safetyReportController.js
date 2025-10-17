@@ -57,7 +57,7 @@ async function sendSafetyAlert(report) {
 // @desc    Submit a safety report
 // @route   POST /api/reports/safety
 // @access  Public (allows anonymous)
-exports.submitSafetyReport = async (req, res) => {
+const submitSafetyReport = async (req, res) => {
   try {
     const { Report } = db.models;
     
@@ -135,7 +135,7 @@ exports.submitSafetyReport = async (req, res) => {
 // @desc    Get all safety reports
 // @route   GET /api/reports/safety
 // @access  Private (Admin only)
-exports.getSafetyReports = async (req, res) => {
+const getSafetyReports = async (req, res) => {
   try {
     const { Report, User } = db.models;
     
@@ -180,7 +180,7 @@ exports.getSafetyReports = async (req, res) => {
 // @desc    Update safety report status
 // @route   PUT /api/reports/safety/:id
 // @access  Private (Admin only)
-exports.updateSafetyReport = async (req, res) => {
+const updateSafetyReport = async (req, res) => {
   try {
     const { Report, User } = db.models;
     const { id } = req.params;
@@ -227,4 +227,10 @@ exports.updateSafetyReport = async (req, res) => {
       message: error.message
     });
   }
+};
+
+module.exports = {
+  submitSafetyReport,
+  getSafetyReports,
+  updateSafetyReport
 };

@@ -1,7 +1,7 @@
 const db = require('../config/database');
 const { Op, Sequelize } = require('sequelize');
 
-module.exports = (sequelize, DataTypes, _models) => {  // Line 33: Rename to _models
+module.exports = (sequelize, DataTypes, _models) => {  // Already fixed
   const Resource = sequelize.define(
     'Resource',
     {
