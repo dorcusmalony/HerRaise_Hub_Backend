@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Add permissions at the workflow level
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   # Job 1: Lint Check
   lint:
@@ -91,20 +97,21 @@ jobs:
       - name: Check job status
         run: |
           if [ "${{ needs.lint.result }}" == "success" ] && [ "${{ needs.build.result }}" == "success" ]; then
-            echo " All CI checks passed!"
+            echo "✅ All CI checks passed!"
             echo "STATUS=success" >> $GITHUB_ENV
           else
-            echo " Some CI checks had issues, but not blocking"
+            echo "⚠️ Some CI checks had issues, but not blocking"
             echo "STATUS=warning" >> $GITHUB_ENV
           fi
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const status = process.env.STATUS || 'unknown';
-            const emoji = status === 'success' ? '' : '';
+            const emoji = status === 'success' ? '✅' : '⚠️';
             const message = status === 'success' 
               ? 'All CI checks passed! Ready to merge.' 
               : 'CI completed with some warnings. Review logs before merging.';
