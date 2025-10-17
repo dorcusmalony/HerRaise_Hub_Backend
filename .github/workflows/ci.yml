@@ -6,14 +6,12 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-# Add permissions at the workflow level
 permissions:
   contents: read
   pull-requests: write
   issues: write
 
 jobs:
-  # Job 1: Lint Check
   lint:
     name: Lint Check
     runs-on: ubuntu-latest
@@ -39,7 +37,6 @@ jobs:
           echo "Checking JavaScript syntax..."
           find src -name "*.js" -exec node -c {} \; || echo "Syntax check completed"
 
-  # Job 2: Build Check
   build:
     name: Build Check
     runs-on: ubuntu-latest
@@ -59,12 +56,11 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test || echo " Tests completed with warnings"
+        run: npm test || echo "⚠️ Tests completed with warnings"
         env:
           NODE_ENV: test
         continue-on-error: true
 
-  # Job 3: Security Audit (only for main branch)
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -86,7 +82,6 @@ jobs:
         run: npm audit --audit-level=critical || echo "⚠️ Critical vulnerabilities check completed"
         continue-on-error: true
 
-  # Job 4: Notify Status
   notify:
     name: CI Status Summary
     runs-on: ubuntu-latest
@@ -114,6 +109,11 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `${emoji} **CI Status**: ${message}\n\n` +
+                    `**Lint**: ${lintResult === 'success' ? '✅' : '❌'}\n` +
+                    `**Build**: ${buildResult === 'success' ? '✅' : '❌'}\n\n` +
+                    `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
+                    `**Commit**: ${context.sha.substring(0, 7)}`
+            });
                     `**Lint**: ${lintResult === 'success' ? '✅' : '❌'}\n` +
                     `**Build**: ${buildResult === 'success' ? '✅' : '❌'}\n\n` +
                     `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
