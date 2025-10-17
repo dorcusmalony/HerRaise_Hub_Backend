@@ -94,31 +94,31 @@ jobs:
     if: always()
     
     steps:
-      - name: Check job status
-        run: |
-          if [ "${{ needs.lint.result }}" == "success" ] && [ "${{ needs.build.result }}" == "success" ]; then
-            echo "✅ All CI checks passed!"
-            echo "STATUS=success" >> $GITHUB_ENV
-          else
-            echo "⚠️ Some CI checks had issues, but not blocking"
-            echo "STATUS=warning" >> $GITHUB_ENV
-          fi
-
       - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const status = process.env.STATUS || 'unknown';
-            const emoji = status === 'success' ? '✅' : '⚠️';
-            const message = status === 'success' 
+            const lintResult = '${{ needs.lint.result }}';
+            const buildResult = '${{ needs.build.result }}';
+            
+            const allPassed = lintResult === 'success' && buildResult === 'success';
+            const emoji = allPassed ? '✅' : '⚠️';
+            const message = allPassed
               ? 'All CI checks passed! Ready to merge.' 
               : 'CI completed with some warnings. Review logs before merging.';
             
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${emoji} **CI Status**: ${message}\n\n` +
+                    `**Lint**: ${lintResult === 'success' ? '✅' : '❌'}\n` +
+                    `**Build**: ${buildResult === 'success' ? '✅' : '❌'}\n\n` +
+                    `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
+                    `**Commit**: ${context.sha.substring(0, 7)}`
+            });
               repo: context.repo.repo,
               body: `${emoji} **CI Status**: ${message}\n\n` +
                     `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
