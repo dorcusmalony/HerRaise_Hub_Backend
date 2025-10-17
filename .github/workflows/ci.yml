@@ -53,7 +53,7 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test || echo "⚠️ Tests completed with warnings"
+        run: npm test || echo " Tests completed with warnings"
         env:
           NODE_ENV: test
         continue-on-error: true
@@ -91,10 +91,10 @@ jobs:
       - name: Check job status
         run: |
           if [ "${{ needs.lint.result }}" == "success" ] && [ "${{ needs.build.result }}" == "success" ]; then
-            echo "✅ All CI checks passed!"
+            echo " All CI checks passed!"
             echo "STATUS=success" >> $GITHUB_ENV
           else
-            echo "⚠️ Some CI checks had issues, but not blocking"
+            echo " Some CI checks had issues, but not blocking"
             echo "STATUS=warning" >> $GITHUB_ENV
           fi
 
@@ -104,7 +104,7 @@ jobs:
         with:
           script: |
             const status = process.env.STATUS || 'unknown';
-            const emoji = status === 'success' ? '✅' : '⚠️';
+            const emoji = status === 'success' ? '' : '';
             const message = status === 'success' 
               ? 'All CI checks passed! Ready to merge.' 
               : 'CI completed with some warnings. Review logs before merging.';
@@ -116,27 +116,4 @@ jobs:
               body: `${emoji} **CI Status**: ${message}\n\n` +
                     `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
                     `**Commit**: ${context.sha.substring(0, 7)}`
-            })
-            echo "STATUS=failure" >> $GITHUB_ENV
-            exit 1
-          fi
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const status = process.env.STATUS;
-            const emoji = status === 'success' ? '✅' : '❌';
-            const message = status === 'success' 
-              ? 'All CI checks passed! Ready to merge.' 
-              : 'CI checks failed. Please review the errors above.';
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `${emoji} **CI Status**: ${message}\n\n` +
-                    `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
-                    `**Commit**: ${context.sha.substring(0, 7)}`
-            })
+            });
