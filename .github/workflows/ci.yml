@@ -108,8 +108,8 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `${emoji} **CI Status**: ${message}\n\n` +
-                    `**Lint**: ${lintResult === 'success' ? '✅' : '❌'}\n` +
+              body: `${emoji} **CI Status**: ${message}\n\n**Lint**: ${lintResult === 'success' ? '✅' : '❌'}\n**Build**: ${buildResult === 'success' ? '✅' : '❌'}\n\n**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n**Commit**: ${context.sha.substring(0, 7)}`
+            });
                     `**Build**: ${buildResult === 'success' ? '✅' : '❌'}\n\n` +
                     `**Branch**: \`${context.payload.pull_request.head.ref}\` → \`${context.payload.pull_request.base.ref}\`\n` +
                     `**Commit**: ${context.sha.substring(0, 7)}`
