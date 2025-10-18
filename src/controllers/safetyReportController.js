@@ -182,7 +182,7 @@ const getSafetyReports = async (req, res) => {
 // @access  Private (Admin only)
 const updateSafetyReport = async (req, res) => {
   try {
-    const { Report, User } = db.models;
+    const { Report } = db.models;
     const { id } = req.params;
     const { status, assignedToId, notes } = req.body;
     
@@ -213,7 +213,6 @@ const updateSafetyReport = async (req, res) => {
       report.resolvedAt = new Date();
     }
     
-    
     await report.save();
     
     res.status(200).json({
@@ -234,3 +233,4 @@ module.exports = {
   getSafetyReports,
   updateSafetyReport
 };
+

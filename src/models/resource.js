@@ -30,7 +30,7 @@ module.exports = (sequelize, DataTypes, _models) => {  // Already fixed
     return db.models;
   }
 
-  function wrapInstance(instance, models) {
+  function wrapResourceInstance(instance, _models) {  // Rename to _models
     if (!instance) return null;
     // add mongoose-style helpers used in controllers
     instance.incrementView = async function() {
@@ -103,7 +103,7 @@ module.exports = (sequelize, DataTypes, _models) => {  // Already fixed
         include: [{ model: User, attributes: ['id', 'name', 'profilePicture', 'role'] }]
       });
 
-      return resources.map(r => wrapInstance(r));
+      return resources.map(r => wrapResourceInstance(r, _models));
     },
 
     async findById(id) {
@@ -111,7 +111,7 @@ module.exports = (sequelize, DataTypes, _models) => {  // Already fixed
       const resource = await Resource.findByPk(id, {
         include: [{ model: User, attributes: ['id', 'name', 'profilePicture', 'role'] }]
       });
-      return wrapInstance(resource);
+      return wrapResourceInstance(resource, _models);
     },
 
     async create(data) {
@@ -132,7 +132,7 @@ module.exports = (sequelize, DataTypes, _models) => {  // Already fixed
         fileSize: data.fileSize,
         duration: data.duration
       });
-      return wrapInstance(resource);
+      return wrapResourceInstance(resource, _models);
     },
 
     // Expose Sequelize model reference

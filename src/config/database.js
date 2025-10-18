@@ -319,6 +319,44 @@ const connectDB = async () => {
     workHistory: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
 
+  const Opportunity = sequelize.define('Opportunity', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    title: { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: false },
+    type: { 
+      type: DataTypes.ENUM('internship', 'scholarship', 'event', 'job', 'workshop'), 
+      allowNull: false 
+    },
+    organization: DataTypes.STRING,
+    location: DataTypes.STRING,
+    applicationDeadline: DataTypes.DATE,
+    startDate: DataTypes.DATE,
+    endDate: DataTypes.DATE,
+    eligibilityCriteria: { type: DataTypes.JSONB, defaultValue: [] },
+    applicationLink: DataTypes.TEXT,
+    contactEmail: DataTypes.STRING,
+    requirements: { type: DataTypes.JSONB, defaultValue: [] },
+    benefits: { type: DataTypes.JSONB, defaultValue: [] },
+    isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
+    views: { type: DataTypes.INTEGER, defaultValue: 0 },
+    applicants: { type: DataTypes.JSONB, defaultValue: [] }
+  }, { timestamps: true });
+
+  const Application = sequelize.define('Application', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    status: { 
+      type: DataTypes.ENUM('draft', 'submitted', 'under_review', 'shortlisted', 'accepted', 'rejected', 'withdrawn'),
+      defaultValue: 'draft'
+    },
+    applicationData: { type: DataTypes.JSONB, defaultValue: {} },
+    documents: { type: DataTypes.JSONB, defaultValue: [] },
+    submittedAt: DataTypes.DATE,
+    reviewedAt: DataTypes.DATE,
+    statusHistory: { type: DataTypes.JSONB, defaultValue: [] },
+    notes: DataTypes.TEXT,
+    remindersSent: { type: DataTypes.JSONB, defaultValue: [] }
+  }, { timestamps: true });
+
   // Associations
   User.hasMany(Resource, { foreignKey: 'uploadedBy' });
   Resource.belongsTo(User, { foreignKey: 'uploadedBy' });
@@ -332,6 +370,16 @@ const connectDB = async () => {
   User.hasOne(MentorProfile, { foreignKey: 'userId' });
   MentorProfile.belongsTo(User, { foreignKey: 'userId' });
 
+  User.hasMany(Opportunity, { foreignKey: 'creatorId' });
+  Opportunity.belongsTo(User, { as: 'creator', foreignKey: 'creatorId' });
+
+  // Add associations
+  User.hasMany(Application, { foreignKey: 'userId' });
+  Application.belongsTo(User, { foreignKey: 'userId' });
+
+  Opportunity.hasMany(Application, { foreignKey: 'opportunityId' });
+  Application.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
+
   // Exported models
   exportedModels = {
     User,
@@ -339,7 +387,9 @@ const connectDB = async () => {
     Resource,
     Report,
     UserActivity,
-    MentorProfile
+    MentorProfile,
+    Opportunity,
+    Application
   };
 
   // Sync models: non-Report first, then recreate Report only if forced
