@@ -167,7 +167,7 @@ exports.register = async (req, res) => {
     // If registering as mentor, create mentor profile
     if (role === 'mentor') {
       const { MentorProfile } = db.models;
-      await MentorProfile.create({
+      const mentorProfile = await MentorProfile.create({
         userId: user.id,
         expertise: Array.isArray(expertise) ? expertise : (expertise ? [expertise] : []),
         bio: bio || `Professional mentor with ${yearsOfExperience || 0} years of experience.`,
@@ -178,10 +178,8 @@ exports.register = async (req, res) => {
         workHistory: Array.isArray(workHistory) ? workHistory : []
       });
       
-      // Reload user to include mentor profile
-      await user.reload({
-        include: [{ model: MentorProfile }]
-      });
+      // Attach to user object for response
+      user.MentorProfile = mentorProfile;
     }
 
     const token = generateToken(user.id);

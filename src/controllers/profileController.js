@@ -9,7 +9,7 @@ exports.getProfile = async (req, res) => {
 
     const user = await User.findByPk(req.user.id, {
       attributes: { exclude: ['password'] },
-      include: req.user.role === 'mentor' ? [{ model: MentorProfile, as: 'mentorProfile' }] : [],
+      include: req.user.role === 'mentor' ? [{ model: MentorProfile, as: 'MentorProfile' }] : [],
     });
 
     if (!user) {
