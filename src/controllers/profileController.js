@@ -34,6 +34,15 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // Validate language if provided
+    const supportedLanguages = ['en', 'ar']; // en = English, ar = Juba Arabic
+    if (language && !supportedLanguages.includes(language)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Unsupported language. Supported languages: en (English), ar (Juba Arabic)' 
+      });
+    }
+
     // Update fields
     if (name) user.name = name;
     if (phoneNumber) user.phoneNumber = phoneNumber;
@@ -129,6 +138,39 @@ exports.deleteProfilePicture = async (req, res) => {
     res.status(200).json({ success: true, message: 'Profile picture deleted successfully' });
   } catch (error) {
     console.error('Delete profile picture error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Change user language preference
+exports.changeLanguage = async (req, res) => {
+  try {
+    const User = db.models.User;
+    const { language } = req.body;
+    const supportedLanguages = ['en', 'ar'];
+
+    if (!language || !supportedLanguages.includes(language)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid language. Supported: en (English), ar (Juba Arabic)'
+      });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.language = language;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Language preference updated successfully',
+      data: { language }
+    });
+  } catch (error) {
+    console.error('Change language error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };

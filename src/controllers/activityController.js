@@ -1,7 +1,7 @@
 const UserActivity = require('../models/UserActivity');
 const Badge = require('../models/badges');
 const User = require('../models/user');
-
+const db = require('../config/database');
 
 exports.getMyActivity = async (req, res) => {
   try {
@@ -113,48 +113,57 @@ exports.checkAndAwardBadges = async (req, res) => {
 
       // Check badge criteria
       switch (criteria.type) {
-        case 'activity-time':
+        case 'activity-time': {
           const recentDays = activity.dailyActivity.slice(-7);
           const qualifyingDays = recentDays.filter(
             day => day.duration >= criteria.threshold
           );
           qualified = qualifyingDays.length >= 7;
           break;
+        }
 
-        case 'streak':
+        case 'streak': {
           qualified = (activity.streak && activity.streak.current) >= criteria.threshold;
           break;
+        }
 
-        case 'resources':
+        case 'resources': {
           const totalResourceActions = (activity.dailyActivity || []).reduce(
             (sum, day) => sum + (day.actions?.resourcesViewed || 0) + (day.actions?.resourcesDownloaded || 0),
             0
           );
           qualified = totalResourceActions >= criteria.threshold;
           break;
+        }
 
-        case 'goals':
+        case 'goals': {
           const totalGoalActions = (activity.dailyActivity || []).reduce(
             (sum, day) => sum + (day.actions?.goalsUpdated || 0),
             0
           );
           qualified = totalGoalActions >= criteria.threshold;
           break;
+        }
 
-        case 'posts':
+        case 'posts': {
           const totalPosts = (activity.dailyActivity || []).reduce(
             (sum, day) => sum + (day.actions?.postsCreated || 0),
             0
           );
           qualified = totalPosts >= criteria.threshold;
           break;
+        }
 
-        case 'comments':
+        case 'comments': {
           const totalComments = (activity.dailyActivity || []).reduce(
             (sum, day) => sum + (day.actions?.commentsAdded || 0),
             0
           );
           qualified = totalComments >= criteria.threshold;
+          break;
+        }
+
+        default:
           break;
       }
 
@@ -241,6 +250,96 @@ exports.getLeaderboard = async (req, res) => {
     res.status(200).json({
       success: true,
       leaderboard
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.logActivity = async (req, res) => {
+  try {
+    const { type, resourceId } = req.body;
+    const userId = req.user.id;
+
+    // Find or create user activity record
+    const activity = await UserActivity.findOne({ where: { userId } });
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Activity not found' });
+    }
+
+    // Award points based on activity type
+    let pointsEarned = 0;
+
+    // Process activity based on type
+    switch (type) {
+      case 'resource_view': {
+        const Resource = db.models.Resource;
+        const resource = await Resource.findByPk(resourceId);
+        pointsEarned = 2; // Default points for resource view
+
+        // Award additional points if resource is a video
+        if (resource && resource.type === 'video') {
+          pointsEarned += 3;
+        }
+        break;
+      }
+
+      case 'login': {
+        pointsEarned = 5;
+        break;
+      }
+
+      case 'profile_update': {
+        pointsEarned = 10;
+        break;
+      }
+
+      case 'resource_share': {
+        pointsEarned = 15;
+        break;
+      }
+
+      case 'mentor_session': {
+        pointsEarned = 30;
+        break;
+      }
+
+      case 'course_complete': {
+        pointsEarned = 50;
+        break;
+      }
+
+      default:
+        break;
+    }
+
+    // Update activity record
+    activity.totalTimeSpent += pointsEarned;
+    activity.dailyActivity.push({
+      date: new Date(),
+      type,
+      duration: pointsEarned,
+      resourceId
+    });
+
+    await activity.save();
+
+    // Update user points and level
+    const user = await User.findById(userId);
+    user.totalPoints = (user.totalPoints || 0) + pointsEarned;
+    user.level = Math.floor((user.totalPoints || 0) / 100) + 1;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Activity logged successfully',
+      pointsEarned,
+      totalPoints: user.totalPoints,
+      level: user.level
     });
   } catch (error) {
     res.status(500).json({
