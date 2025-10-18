@@ -32,3 +32,13 @@ docker-compose.override.yml
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test coverage
+coverage/
+*.coverage
+
+# Jest cache
+.jest/
+
+# ESLint cache
+.eslintcache

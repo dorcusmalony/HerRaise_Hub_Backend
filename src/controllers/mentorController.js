@@ -145,13 +145,13 @@ exports.verifyMentor = async (req, res) => {
 
 // Placeholder for mentor-mentee relationship methods
 exports.getMentorMentees = async (req, res) => {
-  res.status(501).json({ message: "Not implemented yet" });
+  res.status(501).json({ message: 'Not implemented yet' });
 };
 
 exports.getAvailableMentors = async (req, res) => {
-  res.status(501).json({ message: "Not implemented yet" });
+  res.status(501).json({ message: 'Not implemented yet' });
 };
 
 exports.requestMentor = async (req, res) => {
-  res.status(501).json({ message: "Not implemented yet" });
+  res.status(501).json({ message: 'Not implemented yet' });
 };

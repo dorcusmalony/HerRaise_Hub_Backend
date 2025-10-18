@@ -36,8 +36,8 @@ function formatUserForResponse(userInstance) {
     // ensure location is an object with default city/state if empty
     location: (u.location && typeof u.location === 'object' && Object.keys(u.location).length > 0) 
       ? u.location 
-      : (u.location ? (() => { try { return JSON.parse(u.location); } catch(e){ return { city: "Unknown", state: "Unknown" }; } })() 
-      : { city: "Unknown", state: "Unknown" }),
+      : (u.location ? (() => { try { return JSON.parse(u.location); } catch(e){ return { city: 'Unknown', state: 'Unknown' }; } })() 
+      : { city: 'Unknown', state: 'Unknown' }),
     // dateOfBirth normalized to YYYY-MM-DD if present, default to 18 years ago
     dateOfBirth: u.dateOfBirth ? (new Date(u.dateOfBirth).toISOString().split('T')[0]) : 
       (new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]),
@@ -58,6 +58,13 @@ function formatUserForResponse(userInstance) {
   };
   return formatted;
 }
+
+// Quick fix - add this before the function that uses sendEmail:
+const sendEmail = async (options) => {
+  // TODO: Implement email sending (nodemailer, sendgrid, etc.)
+  console.log('📧 Email would be sent:', options);
+  // For now, just log. Replace with actual email service later.
+};
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -111,7 +118,7 @@ exports.register = async (req, res) => {
     }
 
     // parse location (allow object or JSON string) - provide default if missing
-    let parsedLocation = { city: "Unknown", state: "Unknown" };
+    let parsedLocation = { city: 'Unknown', state: 'Unknown' };
     if (location) {
       if (typeof location === 'object' && Object.keys(location).length > 0) {
         parsedLocation = location;
@@ -203,7 +210,7 @@ exports.login = async (req, res) => {
     const User = await getUserModel();
 
     // Try to fetch user including password for authentication
-    let user = await User.findOne({
+    const user = await User.findOne({
       where: { email },
       attributes: { include: ['password'] }
     });
@@ -328,11 +335,22 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    const resetToken = user.getResetPasswordToken();
-    await user.save({ validate: false });
+    // Generate reset token
+    const resetToken = user.createPasswordResetToken();
+    await user.save();
 
-    // In production you would email the reset URL to the user
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${resetToken}`;
+    // Remove or use the resetUrl variable:
+    // const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    
+    // OR if you need it, use it in your email:
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    
+    // Send email with resetUrl
+    await sendEmail({
+      to: user.email,
+      subject: 'Password Reset',
+      text: `Reset your password here: ${resetUrl}`
+    });
 
     res.status(200).json({
       success: true,

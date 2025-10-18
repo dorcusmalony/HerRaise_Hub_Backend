@@ -217,7 +217,7 @@ app.use((req, res) => {
 });
 
 // ------------------ ERROR HANDLER ------------------
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate it's intentionally unused
   console.error(' Error:', err.stack);
   
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {

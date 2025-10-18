@@ -8,7 +8,7 @@ exports.getResources = async (req, res) => {
   try {
     const { type, category, language, search } = req.query;
     
-    let filter = { isApproved: true };
+    const filter = { isApproved: true };
     
     if (type) filter.type = type;
     if (category) filter.category = category;

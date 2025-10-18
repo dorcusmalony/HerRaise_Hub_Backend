@@ -14,7 +14,7 @@ function wrapInstance(instance) {
     today.setHours(0,0,0,0);
     const data = instance.get({ plain: true });
 
-    let dailyActivity = data.dailyActivity || [];
+    const dailyActivity = data.dailyActivity || [];
     let todayActivity = dailyActivity.find(a => new Date(a.date).getTime() === today.getTime());
 
     if (!todayActivity) {

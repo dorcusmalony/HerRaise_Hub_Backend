@@ -138,7 +138,7 @@ module.exports = {
       role: data.role || 'mentee',
       language: data.language || 'en',
       phoneNumber: data.phoneNumber || '+211900000000',
-      location: data.location || { city: "Unknown", state: "Unknown" },
+      location: data.location || { city: 'Unknown', state: 'Unknown' },
       dateOfBirth: data.dateOfBirth || (() => {
         const date = new Date();
         date.setFullYear(date.getFullYear() - 18);

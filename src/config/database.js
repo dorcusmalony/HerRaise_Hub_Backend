@@ -41,7 +41,7 @@ const connectDB = async () => {
   const forceRecreateReports = (process.env.FORCE_RECREATE_REPORTS || 'false').toLowerCase() === 'true';
   const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
-  let sequelizeOptions = {
+  const sequelizeOptions = {
     host: dbHost,
     port: dbPort,
     dialect: 'postgres',
@@ -57,8 +57,6 @@ const connectDB = async () => {
       }
     };
   }
-
-  let sequelize;
 
   // helper to attempt authentication with retries
   async function tryAuthenticate(instance, maxRetries = 5, retryDelayMs = 2000) {
@@ -181,7 +179,7 @@ const connectDB = async () => {
           CREATE TEMP TABLE IF NOT EXISTS reports_backup AS
           SELECT * FROM "Reports";
         `);
-        await sequelize.query(`DROP TABLE IF EXISTS "Reports" CASCADE;`);
+        await sequelize.query('DROP TABLE IF EXISTS "Reports" CASCADE;');
         await sequelize.query(`
           DROP TYPE IF EXISTS report_type_enum CASCADE;
           DROP TYPE IF EXISTS report_status_enum CASCADE;
@@ -213,7 +211,7 @@ const connectDB = async () => {
     resetPasswordExpire: DataTypes.DATE,
     language: { type: DataTypes.STRING, defaultValue: 'en', allowNull: false },
     phoneNumber: { type: DataTypes.STRING, defaultValue: '+211900000000', allowNull: false },
-    location: { type: DataTypes.JSONB, defaultValue: { city: "Unknown", state: "Unknown" } },
+    location: { type: DataTypes.JSONB, defaultValue: { city: 'Unknown', state: 'Unknown' } },
     dateOfBirth: { type: DataTypes.DATE, defaultValue: () => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d; } },
     interests: { type: DataTypes.JSONB, defaultValue: ['personal growth', 'career development'] },
     educationLevel: { type: DataTypes.STRING, defaultValue: 'secondary', allowNull: false },
