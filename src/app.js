@@ -9,6 +9,7 @@ const activityRoutes = require('./routes/activityRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const mentorRoutes = require('./routes/mentorRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const opportunityRoutes = require('./routes/opportunityRoutes');
 
 const app = express();
 
@@ -111,6 +112,7 @@ app.use('/api/resources', resourceRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
+app.use('/api/opportunities', opportunityRoutes);
 
 // Redirect GET visits to /login and /register to the frontend UI, but keep informative JSON for other methods.
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app').replace(/\/$/, '');
@@ -170,6 +172,7 @@ function listMountedRoutes() {
       { prefix: '/api/activity', router: activityRoutes },
       { prefix: '/api/reports', router: reportRoutes },
       { prefix: '/api/mentors', router: mentorRoutes },
+      { prefix: '/api/opportunities', router: opportunityRoutes },
     ];
 
     const out = [];

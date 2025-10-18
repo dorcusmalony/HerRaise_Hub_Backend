@@ -3,7 +3,8 @@ require('dotenv').config();
 process.env.DB_TYPE = 'postgres';
 const dbModule = require('./src/config/database');
 const seedBadges = require('./src/utils/seedBadges');
-
+const { initializeSocket } = require('./src/services/socketService');
+const { initializeCronJobs } = require('./src/services/reminderService');
 
 // Use PORT from environment (Render sets this) with 5000 fallback
 const PORT = process.env.PORT || 5000;
@@ -27,6 +28,12 @@ async function start() {
       console.log(` API URL: http://localhost:${PORT}/api`);
       console.log(` Health URL: http://localhost:${PORT}/health`);
     });
+
+    // Initialize WebSocket
+    initializeSocket(server);
+    
+    // Initialize Cron Jobs for reminders
+    initializeCronJobs();
 
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {

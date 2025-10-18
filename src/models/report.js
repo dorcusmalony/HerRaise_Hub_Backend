@@ -5,7 +5,7 @@ async function getModels() {
   return db.models;
 }
 
-function wrapInstance(instance, models) {
+function wrapInstance(instance, _models) {  // Rename to _models
   if (!instance) return null;
   instance.toJSON = function() { return instance.get({ plain: true }); };
   return instance;
