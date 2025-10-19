@@ -357,6 +357,27 @@ const connectDB = async () => {
     remindersSent: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
 
+  const ForumPost = sequelize.define('ForumPost', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    title: { type: DataTypes.STRING, allowNull: false },
+    content: { type: DataTypes.TEXT, allowNull: false },
+    type: { 
+      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement'), 
+      defaultValue: 'discussion' 
+    },
+    tags: { type: DataTypes.JSONB, defaultValue: [] },
+    likes: { type: DataTypes.JSONB, defaultValue: [] },
+    views: { type: DataTypes.INTEGER, defaultValue: 0 },
+    isPinned: { type: DataTypes.BOOLEAN, defaultValue: false },
+    isLocked: { type: DataTypes.BOOLEAN, defaultValue: false }
+  }, { timestamps: true });
+
+  const ForumComment = sequelize.define('ForumComment', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    content: { type: DataTypes.TEXT, allowNull: false },
+    likes: { type: DataTypes.JSONB, defaultValue: [] }
+  }, { timestamps: true });
+
   // Associations
   User.hasMany(Resource, { foreignKey: 'uploadedBy' });
   Resource.belongsTo(User, { foreignKey: 'uploadedBy' });
@@ -380,6 +401,16 @@ const connectDB = async () => {
   Opportunity.hasMany(Application, { foreignKey: 'opportunityId' });
   Application.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
 
+  // Forum associations
+  User.hasMany(ForumPost, { foreignKey: 'authorId' });
+  ForumPost.belongsTo(User, { as: 'author', foreignKey: 'authorId' });
+
+  ForumPost.hasMany(ForumComment, { foreignKey: 'postId' });
+  ForumComment.belongsTo(ForumPost, { foreignKey: 'postId' });
+
+  User.hasMany(ForumComment, { foreignKey: 'authorId' });
+  ForumComment.belongsTo(User, { as: 'author', foreignKey: 'authorId' });
+
   // Exported models
   exportedModels = {
     User,
@@ -389,7 +420,9 @@ const connectDB = async () => {
     UserActivity,
     MentorProfile,
     Opportunity,
-    Application
+    Application,
+    ForumPost,
+    ForumComment
   };
 
   // Sync models: non-Report first, then recreate Report only if forced

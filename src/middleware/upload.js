@@ -47,3 +47,21 @@ module.exports = {
   uploadDocument: documentUpload.single('document'),
   uploadDocuments: documentUpload.array('documents', 5),
 };
+
+// Use memory storage for Cloudinary upload
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max
+  },
+  fileFilter: (_req, file, cb) => {
+    // Accept images only
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
+
+exports.uploadSingle = upload.single('profilePicture');
+exports.uploadMultiple = upload.array('files', 10);
