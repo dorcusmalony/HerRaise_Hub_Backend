@@ -20,30 +20,24 @@ const documentFilter = (_req, file, cb) => {
   cb(new Error('Only document files (pdf, doc, docx, txt) are allowed'));
 };
 
-// Multer configuration for Cloudinary upload
-const cloudinaryUpload = multer({
+// Multer configuration for images
+const imageUpload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: imageFilter,
 });
 
+// Multer configuration for documents
 const documentUpload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for documents
   fileFilter: documentFilter,
 });
 
+// Export upload middleware
 module.exports = {
-  uploadSingle: cloudinaryUpload.single('profilePicture'),
-  uploadMultiple: cloudinaryUpload.array('images', 10),
-  uploadDocument: documentUpload.single('document'),
-  uploadDocuments: documentUpload.array('documents', 5),
-};
-
-// Use memory storage for Cloudinary upload
-module.exports = {
-  uploadSingle: cloudinaryUpload.single('profilePicture'),
-  uploadMultiple: cloudinaryUpload.array('images', 10),
+  uploadSingle: imageUpload.single('profilePicture'),
+  uploadMultiple: imageUpload.array('images', 10),
   uploadDocument: documentUpload.single('document'),
   uploadDocuments: documentUpload.array('documents', 5),
 };
