@@ -61,7 +61,6 @@ const submitSafetyReport = async (req, res) => {
   try {
     const { Report } = db.models;
     
-    // Get report details
     const { 
       type, 
       description, 
@@ -72,7 +71,6 @@ const submitSafetyReport = async (req, res) => {
       relatedUserIds = []
     } = req.body;
 
-    // Validate required fields
     if (!type || !description) {
       return res.status(400).json({
         success: false,
@@ -80,8 +78,20 @@ const submitSafetyReport = async (req, res) => {
       });
     }
 
-    // Validate report type
-    const validTypes = ['harassment', 'abuse', 'technical', 'unsafe', 'other'];
+    // Enhanced valid types
+    const validTypes = [
+      'harassment',
+      'abuse',
+      'discrimination',
+      'stalking',
+      'threat',
+      'violence',
+      'unsafe_environment',
+      'cyberbullying',
+      'technical',
+      'other'
+    ];
+    
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
@@ -89,10 +99,8 @@ const submitSafetyReport = async (req, res) => {
       });
     }
 
-    // Set reporter ID if authenticated and not anonymous
     const reporterId = (!isAnonymous && req.user) ? req.user.id : null;
 
-    // Create the report
     const report = await Report.create({
       type,
       description,
@@ -105,11 +113,11 @@ const submitSafetyReport = async (req, res) => {
       metadata: {
         ip: req.ip || (req.headers['x-forwarded-for'] || '').split(',')[0],
         userAgent: req.get('User-Agent') || '',
-        extra: req.body.extra || {}
+        extra: req.body.extra || {},
+        reportedAt: new Date()
       }
     });
 
-    // Send notification for high and critical urgency
     if (urgencyLevel === 'high' || urgencyLevel === 'critical') {
       const emailSent = await sendSafetyAlert(report);
       if (emailSent) {
@@ -121,7 +129,19 @@ const submitSafetyReport = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Safety report submitted successfully. Our team will review it shortly.',
-      reportId: report.id
+      reportId: report.id,
+      nextSteps: [
+        'Your report has been received',
+        urgencyLevel === 'critical' ? 'High priority - reviewed within 1 hour' : 'Reviewed within 24 hours',
+        'Keep your contact information available',
+        'You can track status in "My Reports"'
+      ],
+      ...(urgencyLevel === 'critical' && {
+        emergencyContacts: {
+          police: '777',
+          note: 'If in immediate danger, call police'
+        }
+      })
     });
   } catch (error) {
     console.error('Safety report submission error:', error);
