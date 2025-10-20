@@ -30,20 +30,44 @@ exports.getPosts = async (req, res) => {
         },
         {
           model: ForumComment,
-          include: [{
-            model: User,
-            as: 'author',
-            attributes: ['id', 'name', 'profilePicture', 'role']
-          }],
+          where: { parentCommentId: null },
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'author',
+              attributes: ['id', 'name', 'profilePicture', 'role']
+            },
+            {
+              model: ForumComment,
+              as: 'replies',
+              include: [{
+                model: User,
+                as: 'author',
+                attributes: ['id', 'name', 'profilePicture', 'role']
+              }]
+            }
+          ],
           order: [['createdAt', 'ASC']]
         }
       ]
     });
 
+    // Format response with likes and views count
+    const formattedPosts = posts.map(post => {
+      const postData = post.toJSON();
+      return {
+        ...postData,
+        likesCount: (postData.likes || []).length,
+        commentsCount: (postData.ForumComments || []).length,
+        viewsCount: postData.views || 0
+      };
+    });
+
     res.status(200).json({
       success: true,
-      count: posts.length,
-      posts
+      count: formattedPosts.length,
+      posts: formattedPosts
     });
   } catch (error) {
     console.error('Get posts error:', error);
@@ -106,6 +130,8 @@ exports.getPost = async (req, res) => {
         },
         { 
           model: ForumComment,
+          where: { parentCommentId: null },
+          required: false,
           include: [
             { 
               model: User, 
@@ -119,11 +145,10 @@ exports.getPost = async (req, res) => {
                 model: User,
                 as: 'author',
                 attributes: ['id', 'name', 'profilePicture', 'role']
-              }]
+              }],
+              order: [['createdAt', 'ASC']]
             }
           ],
-          where: { parentCommentId: null },
-          required: false,
           order: [['createdAt', 'ASC']]
         }
       ]
@@ -137,12 +162,21 @@ exports.getPost = async (req, res) => {
     }
 
     // Increment views
-    post.views += 1;
+    post.views = (post.views || 0) + 1;
     await post.save();
+
+    // Format with counts
+    const postData = post.toJSON();
+    const formattedPost = {
+      ...postData,
+      likesCount: (postData.likes || []).length,
+      commentsCount: (postData.ForumComments || []).length,
+      viewsCount: postData.views
+    };
 
     res.status(200).json({
       success: true,
-      post
+      post: formattedPost
     });
   } catch (error) {
     console.error('Get post error:', error);
@@ -268,7 +302,7 @@ exports.addComment = async (req, res) => {
       });
     }
 
-    // Create comment
+    // Create comment (can be a reply if parentCommentId is provided)
     const comment = await ForumComment.create({
       content,
       postId: req.params.id,
@@ -276,16 +310,32 @@ exports.addComment = async (req, res) => {
       parentCommentId: parentCommentId || null
     });
 
-    // Load with author info
+    // Load with author info and replies
     await comment.reload({
       include: [
-        { model: User, as: 'author', attributes: ['id', 'name', 'profilePicture', 'role'] }
+        { model: User, as: 'author', attributes: ['id', 'name', 'profilePicture', 'role'] },
+        {
+          model: ForumComment,
+          as: 'replies',
+          include: [{
+            model: User,
+            as: 'author',
+            attributes: ['id', 'name', 'profilePicture', 'role']
+          }]
+        }
       ]
     });
 
+    // Check if replying user is the post author
+    const isPostAuthor = post.authorId.toString() === req.user.id;
+
     res.status(201).json({
       success: true,
-      comment
+      comment: {
+        ...comment.toJSON(),
+        likesCount: 0,
+        isPostAuthorReply: isPostAuthor && parentCommentId !== null
+      }
     });
   } catch (error) {
     console.error('Add comment error:', error);
@@ -393,7 +443,8 @@ exports.togglePostLike = async (req, res) => {
     }
 
     const likes = post.likes || [];
-    const likeIndex = likes.indexOf(req.user.id);
+    const userIdStr = req.user.id.toString();
+    const likeIndex = likes.findIndex(id => id.toString() === userIdStr);
 
     if (likeIndex > -1) {
       // Unlike
@@ -409,9 +460,11 @@ exports.togglePostLike = async (req, res) => {
     res.status(200).json({
       success: true,
       liked: likeIndex === -1,
-      likesCount: likes.length
+      likesCount: likes.length,
+      likes: likes
     });
   } catch (error) {
+    console.error('Toggle post like error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -436,11 +489,14 @@ exports.toggleCommentLike = async (req, res) => {
     }
 
     const likes = comment.likes || [];
-    const likeIndex = likes.indexOf(req.user.id);
+    const userIdStr = req.user.id.toString();
+    const likeIndex = likes.findIndex(id => id.toString() === userIdStr);
 
     if (likeIndex > -1) {
+      // Unlike
       likes.splice(likeIndex, 1);
     } else {
+      // Like
       likes.push(req.user.id);
     }
 
@@ -450,9 +506,11 @@ exports.toggleCommentLike = async (req, res) => {
     res.status(200).json({
       success: true,
       liked: likeIndex === -1,
-      likesCount: likes.length
+      likesCount: likes.length,
+      likes: likes
     });
   } catch (error) {
+    console.error('Toggle comment like error:', error);
     res.status(500).json({
       success: false,
       message: error.message
