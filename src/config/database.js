@@ -375,7 +375,8 @@ const connectDB = async () => {
   const ForumComment = sequelize.define('ForumComment', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     content: { type: DataTypes.TEXT, allowNull: false },
-    likes: { type: DataTypes.JSONB, defaultValue: [] }
+    likes: { type: DataTypes.JSONB, defaultValue: [] },
+    parentCommentId: { type: DataTypes.UUID, allowNull: true } // For nested replies
   }, { timestamps: true });
 
   // Associations
@@ -410,6 +411,10 @@ const connectDB = async () => {
 
   User.hasMany(ForumComment, { foreignKey: 'authorId' });
   ForumComment.belongsTo(User, { as: 'author', foreignKey: 'authorId' });
+
+  // Self-referential relationship for nested comments
+  ForumComment.hasMany(ForumComment, { as: 'replies', foreignKey: 'parentCommentId' });
+  ForumComment.belongsTo(ForumComment, { as: 'parent', foreignKey: 'parentCommentId' });
 
   // Exported models
   exportedModels = {
