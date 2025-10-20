@@ -53,14 +53,15 @@ exports.getPosts = async (req, res) => {
       ]
     });
 
-    // Format response with likes and views count
+    // Format response with likes, views, viewers count
     const formattedPosts = posts.map(post => {
       const postData = post.toJSON();
       return {
         ...postData,
         likesCount: (postData.likes || []).length,
         commentsCount: (postData.ForumComments || []).length,
-        viewsCount: postData.views || 0
+        viewsCount: postData.views || 0,
+        viewersCount: (postData.viewers || []).length
       };
     });
 
@@ -161,6 +162,14 @@ exports.getPost = async (req, res) => {
       });
     }
 
+    // Track unique viewers
+    const userId = req.user ? req.user.id : req.ip;
+    const viewers = post.viewers || [];
+    if (userId && !viewers.includes(userId)) {
+      viewers.push(userId);
+      post.viewers = viewers;
+    }
+
     // Increment views
     post.views = (post.views || 0) + 1;
     await post.save();
@@ -171,7 +180,8 @@ exports.getPost = async (req, res) => {
       ...postData,
       likesCount: (postData.likes || []).length,
       commentsCount: (postData.ForumComments || []).length,
-      viewsCount: postData.views
+      viewsCount: postData.views,
+      viewersCount: (postData.viewers || []).length
     };
 
     res.status(200).json({
@@ -306,7 +316,7 @@ exports.addComment = async (req, res) => {
     const comment = await ForumComment.create({
       content,
       postId: req.params.id,
-      authorId: req.user.id,
+      authorId: req.user.id, // <-- any user (author or not)
       parentCommentId: parentCommentId || null
     });
 
@@ -333,7 +343,7 @@ exports.addComment = async (req, res) => {
       success: true,
       comment: {
         ...comment.toJSON(),
-        likesCount: 0,
+        likesCount: (comment.likes || []).length,
         isPostAuthorReply: isPostAuthor && parentCommentId !== null
       }
     });
