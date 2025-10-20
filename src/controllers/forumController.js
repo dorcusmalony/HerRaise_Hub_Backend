@@ -5,7 +5,7 @@ const db = require('../config/database');
 // @access  Public
 exports.getPosts = async (req, res) => {
   try {
-    const { ForumPost, User } = db.models;
+    const { ForumPost, User, ForumComment } = db.models;
     const { filter = 'all', sort = 'recent', limit = 10 } = req.query;
 
     const where = {};
@@ -22,11 +22,22 @@ exports.getPosts = async (req, res) => {
       where,
       order,
       limit: parseInt(limit, 10) || 10,
-      include: [{
-        model: User,
-        as: 'author',
-        attributes: ['id', 'name', 'profilePicture', 'role']
-      }]
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'name', 'profilePicture', 'role']
+        },
+        {
+          model: ForumComment,
+          include: [{
+            model: User,
+            as: 'author',
+            attributes: ['id', 'name', 'profilePicture', 'role']
+          }],
+          order: [['createdAt', 'ASC']]
+        }
+      ]
     });
 
     res.status(200).json({
@@ -88,10 +99,32 @@ exports.getPost = async (req, res) => {
     
     const post = await ForumPost.findByPk(req.params.id, {
       include: [
-        { model: User, as: 'author', attributes: ['id', 'name', 'profilePicture', 'role'] },
+        { 
+          model: User, 
+          as: 'author', 
+          attributes: ['id', 'name', 'profilePicture', 'role'] 
+        },
         { 
           model: ForumComment,
-          include: [{ model: User, as: 'author', attributes: ['id', 'name', 'profilePicture'] }]
+          include: [
+            { 
+              model: User, 
+              as: 'author', 
+              attributes: ['id', 'name', 'profilePicture', 'role'] 
+            },
+            {
+              model: ForumComment,
+              as: 'replies',
+              include: [{
+                model: User,
+                as: 'author',
+                attributes: ['id', 'name', 'profilePicture', 'role']
+              }]
+            }
+          ],
+          where: { parentCommentId: null },
+          required: false,
+          order: [['createdAt', 'ASC']]
         }
       ]
     });
@@ -112,6 +145,7 @@ exports.getPost = async (req, res) => {
       post
     });
   } catch (error) {
+    console.error('Get post error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -254,6 +288,7 @@ exports.addComment = async (req, res) => {
       comment
     });
   } catch (error) {
+    console.error('Add comment error:', error);
     res.status(500).json({
       success: false,
       message: error.message
