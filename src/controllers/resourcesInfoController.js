@@ -1,13 +1,25 @@
 const db = require('../config/database');
 
+function t(msg, lang) {
+  const dict = {
+    'Your Rights Under South Sudan Law': {
+      ar: 'حقوقك بموجب قانون جنوب السودان',
+      en: 'Your Rights Under South Sudan Law'
+    }
+    // Add more as needed
+  };
+  return dict[msg]?.[lang] || msg;
+}
+
 // @desc    Get legal advice information
 // @route   GET /api/safety-resources/legal-advice
 // @access  Public
-exports.getLegalAdvice = async (_req, res) => {
+exports.getLegalAdvice = async (req, res) => {
   try {
+    const lang = req.lang || 'en';
     const legalAdvice = {
       general: {
-        title: 'Your Rights Under South Sudan Law',
+        title: t('Your Rights Under South Sudan Law', lang),
         sections: [
           {
             title: 'Workplace Harassment',
@@ -52,7 +64,8 @@ exports.getLegalAdvice = async (_req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: t('Server error', req.lang),
+      error: error.message
     });
   }
 };

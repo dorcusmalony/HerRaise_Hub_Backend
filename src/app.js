@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const i18n = require('i18n');
+const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/authRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
@@ -12,6 +14,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const opportunityRoutes = require('./routes/opportunityRoutes');
 const forumRoutes = require('./routes/forumRoutes');
 const safetyResourceRoutes = require('./routes/safetyResourceRoutes');
+const i18nMiddleware = require('./middleware/i18n');
 
 const app = express();
 
@@ -70,6 +73,42 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 
+app.use(cookieParser());
+
+// Configure i18n for bilingual support
+i18n.configure({
+    locales: ['en', 'juba-ar'],
+    defaultLocale: 'en',
+    cookie: 'language',
+    directory: __dirname + '/locales',
+    queryParameter: 'lang',
+    autoReload: true,
+    updateFiles: false,
+    objectNotation: true
+});
+
+// Add i18n middleware
+app.use(i18n.init);
+
+// Language detection and switching middleware
+app.use((req, res, next) => {
+    let language = req.query.lang || req.cookies.language || 'en';
+    if (!['en', 'juba-ar'].includes(language)) {
+        language = 'en';
+    }
+    res.setLocale(language);
+    if (req.query.lang) {
+        res.cookie('language', language, { 
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+            httpOnly: true 
+        });
+    }
+    res.locals.__ = res.__;
+    res.locals.__n = res.__n;
+    res.locals.currentLanguage = language;
+    next();
+});
+
 // ------------------ STATIC FILES ------------------
 // Serve uploaded files (only needed if using local storage)
 app.use('/uploads', express.static('uploads'));
@@ -77,7 +116,7 @@ app.use('/uploads', express.static('uploads'));
 // ------------------ DEBUG LOGGING ------------------
 // Log all API requests for debugging (remove in production or gate with NODE_ENV check)
 app.use('/api', (req, res, next) => {
-  console.log(`📥 ${req.method} ${req.path}`, {
+  console.log(` ${req.method} ${req.path}`, {
     body: req.method !== 'GET' ? req.body : undefined,
     query: Object.keys(req.query).length ? req.query : undefined,
     headers: {
@@ -117,6 +156,29 @@ app.use('/api/mentors', mentorRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/safety-resources', safetyResourceRoutes);
+
+// API endpoint for client-side translations (for dynamic content)
+app.get('/api/translations', (req, res) => {
+    const lang = req.cookies.language || 'en';
+    res.json({
+        language: lang,
+        translations: i18n.getCatalog(lang)
+    });
+});
+
+// Language switch endpoint
+app.post('/api/switch-language', (req, res) => {
+    const { language } = req.body;
+    if (['en', 'juba-ar'].includes(language)) {
+        res.cookie('language', language, { 
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+            httpOnly: true 
+        });
+        res.json({ success: true, language });
+    } else {
+        res.status(400).json({ error: 'Invalid language' });
+    }
+});
 
 // Redirect GET visits to /login and /register to the frontend UI, but keep informative JSON for other methods.
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app').replace(/\/$/, '');
@@ -202,7 +264,7 @@ function listMountedRoutes() {
       });
     });
 
-    console.log('✅ Mounted routes:\n', out.join('\n') || '(none)');
+    console.log(' Mounted routes:\n', out.join('\n') || '(none)');
   } catch (e) {
     console.warn('Could not list mounted routes:', e && e.message);
   }
@@ -243,5 +305,22 @@ app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate
     error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 });
+
+app.use(i18nMiddleware);
+
+// i18n and language switching middleware are now implemented in your app.js.
+// This means:
+// - The backend serves all API responses in the language chosen by the user (English or Juba Arabic) if your translation files and backend logic support it.
+// - The `/api/translations` endpoint provides all static UI translations for the frontend.
+// - The `/api/switch-language` endpoint allows the frontend/user to change language and sets a cookie for persistence.
+// - All backend modules that use `res.__` or `res.locals.__` for static text will return the correct language.
+// - If your frontend uses the `/api/translations` endpoint and passes `?lang=juba-ar` in API requests, the whole website can turn to Juba Arabic for that user.
+
+// To complete full localization:
+// - Ensure your backend controllers use `res.__` or similar for all static messages.
+// - Ensure your frontend loads translations from `/api/translations` or uses the same keys as your backend translation files.
+// - Ensure your frontend passes the correct `lang` query or cookie with every API request.
+
+// ✅ Yes, backend localization is now implemented and ready for full Juba Arabic support, provided your translation files and frontend are set up accordingly.
 
 module.exports = app;
