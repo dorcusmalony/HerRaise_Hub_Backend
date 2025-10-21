@@ -15,6 +15,9 @@ const opportunityRoutes = require('./routes/opportunityRoutes');
 const forumRoutes = require('./routes/forumRoutes');
 const safetyResourceRoutes = require('./routes/safetyResourceRoutes');
 const i18nMiddleware = require('./middleware/i18n');
+const { protect } = require('./middleware/auth'); // added
+const { requireAdmin } = require('./middleware/admin'); // added
+const db = require('./config/database'); // added to access models
 
 const app = express();
 
@@ -156,6 +159,175 @@ app.use('/api/mentors', mentorRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/safety-resources', safetyResourceRoutes);
+
+// --- Admin routes (protected + admin-only) ---
+const adminRouter = express.Router();
+
+// GET /api/admin/stats
+adminRouter.get('/stats', async (req, res) => {
+  try {
+    const { User, ForumPost, Resource, Opportunity } = db.models;
+    const [totalUsers, totalPosts, totalResources, totalOpportunities] = await Promise.all([
+      User.count(),
+      ForumPost.count(),
+      Resource.count(),
+      Opportunity.count()
+    ]);
+    res.json({ success: true, totalUsers, totalPosts, totalResources, totalOpportunities });
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
+  }
+});
+
+// GET /api/admin/users
+adminRouter.get('/users', async (req, res) => {
+  try {
+    const { User } = db.models;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 500);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const offset = (page - 1) * limit;
+
+    const { rows: users, count } = await User.findAndCountAll({
+      attributes: { exclude: ['password'] },
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({ success: true, count, page, limit, users });
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ success: false, message: 'Failed to list users' });
+  }
+});
+
+// PUT /api/admin/users/:id
+adminRouter.put('/users/:id', async (req, res) => {
+  try {
+    const { User } = db.models;
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const allowed = ['role', 'isActive', 'isVerified', 'name', 'phoneNumber', 'language'];
+    Object.keys(req.body).forEach(k => {
+      if (allowed.includes(k)) user[k] = req.body[k];
+    });
+
+    await user.save();
+    const updated = await User.findByPk(user.id, { attributes: { exclude: ['password'] } });
+    res.json({ success: true, user: updated });
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update user' });
+  }
+});
+
+// DELETE /api/admin/users/:id
+adminRouter.delete('/users/:id', async (req, res) => {
+  try {
+    const { User } = db.models;
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    await user.destroy();
+    res.json({ success: true, message: 'User deleted' });
+  } catch (err) {
+    console.error('Admin delete user error:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete user' });
+  }
+});
+
+// GET /api/admin/forum/posts (admin review)
+adminRouter.get('/forum/posts', async (req, res) => {
+  try {
+    const { ForumPost, User, ForumComment } = db.models;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 500);
+    const posts = await ForumPost.findAll({
+      limit,
+      order: [['createdAt', 'DESC']],
+      include: [
+        { model: User, as: 'author', attributes: ['id', 'name', 'profilePicture', 'role'] },
+        { model: ForumComment, required: false }
+      ]
+    });
+    res.json({ success: true, count: posts.length, posts });
+  } catch (err) {
+    console.error('Admin get posts error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch posts' });
+  }
+});
+
+// Admin delete post (duplicate safe endpoint)
+adminRouter.delete('/forum/posts/:id', async (req, res) => {
+  try {
+    const { ForumPost } = db.models;
+    const post = await ForumPost.findByPk(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+    await post.destroy();
+    res.json({ success: true, message: 'Post deleted' });
+  } catch (err) {
+    console.error('Admin delete post error:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete post' });
+  }
+});
+
+// Admin resources CRUD under /api/admin/resources
+adminRouter.get('/resources', async (req, res) => {
+  try {
+    const { Resource, User } = db.models;
+    const resources = await Resource.findAll({
+      order: [['createdAt', 'DESC']],
+      include: [{ model: User, attributes: ['id', 'name', 'profilePicture'] }]
+    });
+    res.json({ success: true, count: resources.length, resources });
+  } catch (err) {
+    console.error('Admin resources list error:', err);
+    res.status(500).json({ success: false, message: 'Failed to list resources' });
+  }
+});
+
+adminRouter.post('/resources', async (req, res) => {
+  try {
+    const { Resource } = db.models;
+    const payload = req.body;
+    const resource = await Resource.create(payload);
+    res.status(201).json({ success: true, resource });
+  } catch (err) {
+    console.error('Admin create resource error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create resource' });
+  }
+});
+
+adminRouter.put('/resources/:id', async (req, res) => {
+  try {
+    const { Resource } = db.models;
+    const resource = await Resource.findByPk(req.params.id);
+    if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' });
+    Object.assign(resource, req.body);
+    await resource.save();
+    res.json({ success: true, resource });
+  } catch (err) {
+    console.error('Admin update resource error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update resource' });
+  }
+});
+
+adminRouter.delete('/resources/:id', async (req, res) => {
+  try {
+    const { Resource } = db.models;
+    const resource = await Resource.findByPk(req.params.id);
+    if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' });
+    await resource.destroy();
+    res.json({ success: true, message: 'Resource deleted' });
+  } catch (err) {
+    console.error('Admin delete resource error:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete resource' });
+  }
+});
+
+// attach admin router with protection
+app.use('/api/admin', protect, requireAdmin, adminRouter);
 
 // API endpoint for client-side translations (for dynamic content)
 app.get('/api/translations', (req, res) => {
