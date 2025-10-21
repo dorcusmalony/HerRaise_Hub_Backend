@@ -2,12 +2,27 @@ const Opportunity = require('../models/Opportunity');
 const db = require('../config/database');
 const { notifyNewOpportunity, notifyApplicationStatus } = require('../services/socketService');
 
+function t(msg, lang) {
+  const dict = {
+    'Opportunity not found': {
+      ar: 'الفرصة غير موجودة',
+      en: 'Opportunity not found'
+    },
+    'Opportunity deleted successfully': {
+      ar: 'تم حذف الفرصة بنجاح',
+      en: 'Opportunity deleted successfully'
+    }
+  };
+  return dict[msg]?.[lang] || msg;
+}
+
 // @desc    Get all opportunities with filters
 // @route   GET /api/opportunities
 // @access  Public
 exports.getOpportunities = async (req, res) => {
   try {
     const { filter, search, deadline } = req.query;
+    const lang = req.lang || 'en';
     
     const filterObj = {};
     if (filter && filter !== 'all') {
@@ -22,16 +37,28 @@ exports.getOpportunities = async (req, res) => {
 
     const opportunities = await Opportunity.find(filterObj);
 
+    // Localize title/description for each opportunity
+    const localized = opportunities.map(o => ({
+      ...o.toJSON(),
+      title: lang === 'ar' && o.title_ar ? o.title_ar : o.title,
+      description: lang === 'ar' && o.description_ar ? o.description_ar : o.description,
+      title_en: o.title,
+      title_ar: o.title_ar || '',
+      description_en: o.description,
+      description_ar: o.description_ar || ''
+    }));
+
     res.status(200).json({
       success: true,
-      count: opportunities.length,
-      opportunities
+      count: localized.length,
+      opportunities: localized
     });
   } catch (error) {
     console.error('Get opportunities error:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: t('Server error', req.lang),
+      error: error.message
     });
   }
 };
@@ -157,12 +184,13 @@ exports.deleteOpportunity = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Opportunity deleted successfully'
+      message: t('Opportunity deleted successfully', req.lang)
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: t('Server error', req.lang),
+      error: error.message
     });
   }
 };

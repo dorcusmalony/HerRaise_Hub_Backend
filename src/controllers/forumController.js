@@ -1,5 +1,25 @@
 const db = require('../config/database');
 
+// Helper to get localized content (English/Juba Arabic)
+function getLocalizedContent(obj, field, lang) {
+  if (!obj) return '';
+  if (lang === 'ar' && obj[`${field}_ar`]) return obj[`${field}_ar`];
+  return obj[field] || '';
+}
+
+// @desc    Get supported languages for forum
+// @route   GET /api/forum/languages
+// @access  Public
+exports.getSupportedLanguages = (_req, res) => {
+  res.status(200).json({
+    success: true,
+    languages: [
+      { code: 'en', name: 'English' },
+      { code: 'ar', name: 'Juba Arabic' }
+    ]
+  });
+};
+
 // @desc    Get forum posts
 // @route   GET /api/forum/posts
 // @access  Public
@@ -7,6 +27,7 @@ exports.getPosts = async (req, res) => {
   try {
     const { ForumPost, User, ForumComment } = db.models;
     const { filter = 'all', sort = 'recent', limit = 10 } = req.query;
+    const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
     const where = {};
     if (filter !== 'all') {
@@ -56,6 +77,31 @@ exports.getPosts = async (req, res) => {
     // Format response with likes, views, viewers count
     const formattedPosts = posts.map(post => {
       const postData = post.toJSON();
+      // Localize title/content
+      postData.title = getLocalizedContent(postData, 'title', lang);
+      postData.content = getLocalizedContent(postData, 'content', lang);
+      // Always include both language fields for frontend switching
+      postData.title_en = postData.title;
+      postData.title_ar = postData.title_ar || '';
+      postData.content_en = postData.content;
+      postData.content_ar = postData.content_ar || '';
+      // Localize comments and replies
+      if (postData.ForumComments) {
+        postData.ForumComments = postData.ForumComments.map(comment => {
+          comment.content = getLocalizedContent(comment, 'content', lang);
+          comment.content_en = comment.content;
+          comment.content_ar = comment.content_ar || '';
+          if (comment.replies) {
+            comment.replies = comment.replies.map(reply => {
+              reply.content = getLocalizedContent(reply, 'content', lang);
+              reply.content_en = reply.content;
+              reply.content_ar = reply.content_ar || '';
+              return reply;
+            });
+          }
+          return comment;
+        });
+      }
       return {
         ...postData,
         likesCount: (postData.likes || []).length,
@@ -85,11 +131,13 @@ exports.getPosts = async (req, res) => {
 exports.createPost = async (req, res) => {
   try {
     const { ForumPost, User } = db.models;
-    const { title, content, type, tags } = req.body;
+    const { title, content, type, tags, title_ar, content_ar } = req.body;
 
     const post = await ForumPost.create({
       title,
       content,
+      title_ar: title_ar || null,
+      content_ar: content_ar || null,
       type: type || 'discussion',
       tags: Array.isArray(tags) ? tags : [],
       authorId: req.user.id
@@ -121,7 +169,8 @@ exports.createPost = async (req, res) => {
 exports.getPost = async (req, res) => {
   try {
     const { ForumPost, User, ForumComment } = db.models;
-    
+    const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
+
     const post = await ForumPost.findByPk(req.params.id, {
       include: [
         { 
@@ -174,8 +223,30 @@ exports.getPost = async (req, res) => {
     post.views = (post.views || 0) + 1;
     await post.save();
 
-    // Format with counts
+    // Format with counts and localization
     const postData = post.toJSON();
+    postData.title = getLocalizedContent(postData, 'title', lang);
+    postData.content = getLocalizedContent(postData, 'content', lang);
+    postData.title_en = postData.title;
+    postData.title_ar = postData.title_ar || '';
+    postData.content_en = postData.content;
+    postData.content_ar = postData.content_ar || '';
+    if (postData.ForumComments) {
+      postData.ForumComments = postData.ForumComments.map(comment => {
+        comment.content = getLocalizedContent(comment, 'content', lang);
+        comment.content_en = comment.content;
+        comment.content_ar = comment.content_ar || '';
+        if (comment.replies) {
+          comment.replies = comment.replies.map(reply => {
+            reply.content = getLocalizedContent(reply, 'content', lang);
+            reply.content_en = reply.content;
+            reply.content_ar = reply.content_ar || '';
+            return reply;
+          });
+        }
+        return comment;
+      });
+    }
     const formattedPost = {
       ...postData,
       likesCount: (postData.likes || []).length,
@@ -286,7 +357,7 @@ exports.deletePost = async (req, res) => {
 exports.addComment = async (req, res) => {
   try {
     const { ForumComment, ForumPost, User } = db.models;
-    const { content, parentCommentId } = req.body;
+    const { content, parentCommentId, content_ar } = req.body;
 
     if (!content) {
       return res.status(400).json({
@@ -315,8 +386,9 @@ exports.addComment = async (req, res) => {
     // Create comment (can be a reply if parentCommentId is provided)
     const comment = await ForumComment.create({
       content,
+      content_ar: content_ar || null,
       postId: req.params.id,
-      authorId: req.user.id, // <-- any user (author or not)
+      authorId: req.user.id,
       parentCommentId: parentCommentId || null
     });
 

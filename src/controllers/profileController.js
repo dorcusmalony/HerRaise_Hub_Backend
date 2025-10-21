@@ -1,6 +1,25 @@
 const db = require('../config/database');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUpload');
 
+function t(msg, lang) {
+  // Simple static translations (expand as needed)
+  const dict = {
+    'Profile updated successfully': {
+      ar: 'تم تحديث الملف الشخصي بنجاح',
+      en: 'Profile updated successfully'
+    },
+    'User not found': {
+      ar: 'المستخدم غير موجود',
+      en: 'User not found'
+    },
+    'Server error': {
+      ar: 'خطأ في الخادم',
+      en: 'Server error'
+    }
+  };
+  return dict[msg]?.[lang] || msg;
+}
+
 // Get current user profile
 exports.getProfile = async (req, res) => {
   try {
@@ -13,13 +32,14 @@ exports.getProfile = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
+
+    // Removed unused 'lang' variable to fix ESLint warning
 
     res.status(200).json({ success: true, data: user });
   } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: t('Server error', req.lang), error: error.message });
   }
 };
 
@@ -31,7 +51,7 @@ exports.updateProfile = async (req, res) => {
 
     const user = await User.findByPk(req.user.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
 
     // Validate language if provided
@@ -60,12 +80,11 @@ exports.updateProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
+      message: t('Profile updated successfully', req.lang),
       data: updatedUser,
     });
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: t('Server error', req.lang), error: error.message });
   }
 };
 
@@ -80,7 +99,7 @@ exports.uploadProfilePicture = async (req, res) => {
     const user = await User.findByPk(req.user.id);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
 
     // Delete old profile picture from Cloudinary if exists
@@ -117,7 +136,7 @@ exports.deleteProfilePicture = async (req, res) => {
     const user = await User.findByPk(req.user.id);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
 
     if (!user.profilePicture) {
@@ -158,7 +177,7 @@ exports.changeLanguage = async (req, res) => {
 
     const user = await User.findByPk(req.user.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
 
     user.language = language;
