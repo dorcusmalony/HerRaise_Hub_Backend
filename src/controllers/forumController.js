@@ -131,7 +131,7 @@ exports.getPosts = async (req, res) => {
 exports.createPost = async (req, res) => {
   try {
     const { ForumPost, User } = db.models;
-    const { title, content, type, tags, title_ar, content_ar } = req.body;
+    const { title, content, type, tags, title_ar, content_ar, attachments } = req.body;
 
     const post = await ForumPost.create({
       title,
@@ -140,6 +140,7 @@ exports.createPost = async (req, res) => {
       content_ar: content_ar || null,
       type: type || 'discussion',
       tags: Array.isArray(tags) ? tags : [],
+      attachments: Array.isArray(attachments) ? attachments : [],
       authorId: req.user.id
     });
 
@@ -292,12 +293,13 @@ exports.updatePost = async (req, res) => {
       });
     }
 
-    const { title, content, type, tags } = req.body;
+    const { title, content, type, tags, attachments } = req.body;
     
     if (title) post.title = title;
     if (content) post.content = content;
     if (type) post.type = type;
     if (tags) post.tags = Array.isArray(tags) ? tags : [];
+    if (attachments) post.attachments = Array.isArray(attachments) ? attachments : [];
 
     await post.save();
 
@@ -593,6 +595,106 @@ exports.toggleCommentLike = async (req, res) => {
     });
   } catch (error) {
     console.error('Toggle comment like error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Create feedback post with attachments
+// @route   POST /api/forum/posts/feedback
+// @access  Private
+exports.createFeedbackPost = async (req, res) => {
+  try {
+    const { ForumPost, User } = db.models;
+    const { title, content, attachments, tags } = req.body;
+
+    const post = await ForumPost.create({
+      title,
+      content,
+      type: 'feedback',
+      tags: Array.isArray(tags) ? tags : [],
+      attachments: Array.isArray(attachments) ? attachments : [],
+      authorId: req.user.id
+    });
+
+    await post.reload({
+      include: [{
+        model: User,
+        as: 'author',
+        attributes: ['id', 'name', 'profilePicture', 'role']
+      }]
+    });
+
+    res.status(201).json({
+      success: true,
+      post
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get feedback posts
+// @route   GET /api/forum/posts/feedback
+// @access  Public
+exports.getFeedbackPosts = async (req, res) => {
+  try {
+    const { ForumPost, User, ForumComment } = db.models;
+    const { limit = 10 } = req.query;
+    const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
+
+    const posts = await ForumPost.findAll({
+      where: { type: 'feedback' },
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit, 10) || 10,
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'name', 'profilePicture', 'role']
+        },
+        {
+          model: ForumComment,
+          where: { parentCommentId: null },
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'author',
+              attributes: ['id', 'name', 'profilePicture', 'role']
+            }
+          ],
+          order: [['createdAt', 'ASC']]
+        }
+      ]
+    });
+
+    const formattedPosts = posts.map(post => {
+      const postData = post.toJSON();
+      postData.title = getLocalizedContent(postData, 'title', lang);
+      postData.content = getLocalizedContent(postData, 'content', lang);
+      
+      return {
+        ...postData,
+        likesCount: (postData.likes || []).length,
+        commentsCount: (postData.ForumComments || []).length,
+        viewsCount: postData.views || 0,
+        attachmentsCount: (postData.attachments || []).length
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: formattedPosts.length,
+      posts: formattedPosts
+    });
+  } catch (error) {
+    console.error('Get feedback posts error:', error);
     res.status(500).json({
       success: false,
       message: error.message

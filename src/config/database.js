@@ -362,14 +362,15 @@ const connectDB = async () => {
     title: { type: DataTypes.STRING, allowNull: false },
     content: { type: DataTypes.TEXT, allowNull: false },
     type: { 
-      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement'), 
+      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback'), 
       defaultValue: 'discussion' 
     },
     tags: { type: DataTypes.JSONB, defaultValue: [] },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
     views: { type: DataTypes.INTEGER, defaultValue: 0 },
     isPinned: { type: DataTypes.BOOLEAN, defaultValue: false },
-    isLocked: { type: DataTypes.BOOLEAN, defaultValue: false }
+    isLocked: { type: DataTypes.BOOLEAN, defaultValue: false },
+    attachments: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
 
   const ForumComment = sequelize.define('ForumComment', {
@@ -377,6 +378,39 @@ const connectDB = async () => {
     content: { type: DataTypes.TEXT, allowNull: false },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
     parentCommentId: { type: DataTypes.UUID, allowNull: true } // For nested replies
+  }, { timestamps: true });
+
+  const Scholarship = sequelize.define('Scholarship', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    title: { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: false },
+    type: { type: DataTypes.ENUM('scholarship', 'internship', 'competition'), allowNull: false },
+    deadline: { type: DataTypes.DATE, allowNull: false },
+    amount: DataTypes.STRING,
+    eligibility: DataTypes.TEXT,
+    applicationUrl: DataTypes.STRING,
+    isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
+    postedBy: { type: DataTypes.UUID, allowNull: false }
+  }, { timestamps: true });
+
+  const ScholarshipApplication = sequelize.define('ScholarshipApplication', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    scholarshipId: { type: DataTypes.UUID, allowNull: false },
+    userId: { type: DataTypes.UUID, allowNull: false },
+    status: { type: DataTypes.ENUM('pending', 'submitted', 'under_review', 'accepted', 'rejected'), defaultValue: 'pending' },
+    notes: DataTypes.TEXT,
+    appliedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, { timestamps: true });
+
+  const Notification = sequelize.define('Notification', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    userId: { type: DataTypes.UUID, allowNull: false },
+    type: { type: DataTypes.ENUM('scholarship', 'application_update', 'deadline_reminder'), allowNull: false },
+    title: { type: DataTypes.STRING, allowNull: false },
+    message: { type: DataTypes.TEXT, allowNull: false },
+    relatedId: DataTypes.UUID,
+    isRead: { type: DataTypes.BOOLEAN, defaultValue: false },
+    link: DataTypes.STRING
   }, { timestamps: true });
 
   // Associations
@@ -416,6 +450,20 @@ const connectDB = async () => {
   ForumComment.hasMany(ForumComment, { as: 'replies', foreignKey: 'parentCommentId' });
   ForumComment.belongsTo(ForumComment, { as: 'parent', foreignKey: 'parentCommentId' });
 
+  // Scholarship associations
+  User.hasMany(Scholarship, { foreignKey: 'postedBy' });
+  Scholarship.belongsTo(User, { foreignKey: 'postedBy' });
+
+  User.hasMany(ScholarshipApplication, { foreignKey: 'userId' });
+  ScholarshipApplication.belongsTo(User, { foreignKey: 'userId' });
+
+  Scholarship.hasMany(ScholarshipApplication, { foreignKey: 'scholarshipId' });
+  ScholarshipApplication.belongsTo(Scholarship, { foreignKey: 'scholarshipId' });
+
+  // Notification associations
+  User.hasMany(Notification, { foreignKey: 'userId' });
+  Notification.belongsTo(User, { foreignKey: 'userId' });
+
   // Exported models
   exportedModels = {
     User,
@@ -427,7 +475,10 @@ const connectDB = async () => {
     Opportunity,
     Application,
     ForumPost,
-    ForumComment
+    ForumComment,
+    Scholarship,
+    ScholarshipApplication,
+    Notification
   };
 
   // Sync models: non-Report first, then recreate Report only if forced
