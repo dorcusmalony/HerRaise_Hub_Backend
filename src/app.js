@@ -14,6 +14,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const opportunityRoutes = require('./routes/opportunityRoutes');
 const forumRoutes = require('./routes/forumRoutes');
 const safetyResourceRoutes = require('./routes/safetyResourceRoutes');
+const scholarshipRoutes = require('./routes/scholarshipRoutes');
 const i18nMiddleware = require('./middleware/i18n');
 const { protect } = require('./middleware/auth'); // added
 const { requireAdmin } = require('./middleware/admin'); // added
@@ -159,6 +160,7 @@ app.use('/api/mentors', mentorRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/safety-resources', safetyResourceRoutes);
+app.use('/api/scholarships', scholarshipRoutes);
 
 // --- Admin routes (protected + admin-only) ---
 const adminRouter = express.Router();
@@ -269,6 +271,32 @@ adminRouter.delete('/forum/posts/:id', async (req, res) => {
   } catch (err) {
     console.error('Admin delete post error:', err);
     res.status(500).json({ success: false, message: 'Failed to delete post' });
+  }
+});
+
+// Admin scholarship management
+adminRouter.get('/scholarships', async (req, res) => {
+  try {
+    const { Scholarship, User } = db.models;
+    const scholarships = await Scholarship.findAll({
+      include: [{ model: User, attributes: ['id', 'name'] }],
+      order: [['createdAt', 'DESC']]
+    });
+    res.json({ success: true, scholarships });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch scholarships' });
+  }
+});
+
+adminRouter.delete('/scholarships/:id', async (req, res) => {
+  try {
+    const { Scholarship } = db.models;
+    const scholarship = await Scholarship.findByPk(req.params.id);
+    if (!scholarship) return res.status(404).json({ success: false, message: 'Scholarship not found' });
+    await scholarship.destroy();
+    res.json({ success: true, message: 'Scholarship deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to delete scholarship' });
   }
 });
 
@@ -413,6 +441,7 @@ function listMountedRoutes() {
       { prefix: '/api/opportunities', router: opportunityRoutes },
       { prefix: '/api/forum', router: forumRoutes },
       { prefix: '/api/safety-resources', router: safetyResourceRoutes },
+      { prefix: '/api/scholarships', router: scholarshipRoutes },
     ];
 
     const out = [];
