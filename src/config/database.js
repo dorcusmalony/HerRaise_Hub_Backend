@@ -362,7 +362,7 @@ const connectDB = async () => {
     title: { type: DataTypes.STRING, allowNull: false },
     content: { type: DataTypes.TEXT, allowNull: false },
     type: { 
-      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback'), 
+      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback', 'essay', 'video'), 
       defaultValue: 'discussion' 
     },
     tags: { type: DataTypes.JSONB, defaultValue: [] },
