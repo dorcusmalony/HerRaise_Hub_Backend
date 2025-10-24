@@ -19,6 +19,7 @@ const getFileCategory = (mimetype, originalname) => {
   if (mimetype.startsWith('video/')) return 'video';
   if (mimetype === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (['doc', 'docx'].includes(ext) || mimetype.includes('word')) return 'document';
+  if (['ppt', 'pptx'].includes(ext) || mimetype.includes('presentation')) return 'slides';
   if (mimetype === 'text/plain' || ext === 'txt') return 'text';
   if (['mp3', 'wav', 'ogg'].includes(ext) || mimetype.startsWith('audio/')) return 'audio';
   return 'other';
@@ -28,9 +29,10 @@ const getFileCategory = (mimetype, originalname) => {
 const getFileIcon = (category, _ext) => {
   const icons = {
     image: '',
-    video: '🎥',
+    video: '',
     pdf: '',
     document: '',
+    slides: '',
     text: '',
     audio: '',
     other: ''
@@ -47,10 +49,10 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Allow images, videos, documents, audio
-    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|webm|pdf|doc|docx|txt|mp3|wav|ogg/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|webm|pdf|doc|docx|ppt|pptx|txt|mp3|wav|ogg/;
     const extname = allowedTypes.test(file.originalname.toLowerCase());
     const mimetype = /^(image|video|audio)\//.test(file.mimetype) || 
-                    ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'].includes(file.mimetype);
+                    ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain'].includes(file.mimetype);
     
     if (mimetype && extname) {
       return cb(null, true);
