@@ -513,15 +513,5 @@ app.use(i18nMiddleware);
 // This means:
 // - The backend serves all API responses in the language chosen by the user (English or Juba Arabic) if your translation files and backend logic support it.
 // - The `/api/translations` endpoint provides all static UI translations for the frontend.
-// - The `/api/switch-language` endpoint allows the frontend/user to change language and sets a cookie for persistence.
-// - All backend modules that use `res.__` or `res.locals.__` for static text will return the correct language.
-// - If your frontend uses the `/api/translations` endpoint and passes `?lang=juba-ar` in API requests, the whole website can turn to Juba Arabic for that user.
-
-// To complete full localization:
-// - Ensure your backend controllers use `res.__` or similar for all static messages.
-// - Ensure your frontend loads translations from `/api/translations` or uses the same keys as your backend translation files.
-// - Ensure your frontend passes the correct `lang` query or cookie with every API request.
-
-// ✅ Yes, backend localization is now implemented and ready for full Juba Arabic support, provided your translation files and frontend are set up accordingly.
 
 module.exports = app;
