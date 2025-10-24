@@ -77,6 +77,31 @@ exports.uploadToCloudinary = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
+    // Check Cloudinary config
+    if (!process.env.CLOUDINARY_URL && !process.env.CLOUDINARY_CLOUD_NAME) {
+      console.log('Cloudinary not configured - using fallback');
+      // Fallback: return mock URLs for testing
+      const files = req.files || [req.file];
+      const mockFiles = files.map(file => {
+        const category = getFileCategory(file.mimetype, file.originalname);
+        const ext = file.originalname.toLowerCase().split('.').pop();
+        return {
+          url: `https://via.placeholder.com/300x200?text=${encodeURIComponent(file.originalname)}`,
+          publicId: `mock_${Date.now()}`,
+          originalName: file.originalname,
+          size: file.size,
+          type: 'mock',
+          format: ext,
+          category,
+          extension: ext,
+          icon: getFileIcon(category, ext),
+          mimetype: file.mimetype,
+          sizeFormatted: formatFileSize(file.size)
+        };
+      });
+      return res.json({ success: true, files: mockFiles });
+    }
+
     const files = req.files || [req.file];
     const uploadPromises = files.map(file => {
       return new Promise((resolve, reject) => {
@@ -87,8 +112,10 @@ exports.uploadToCloudinary = async (req, res) => {
             public_id: `${Date.now()}_${file.originalname.split('.')[0]}`
           },
           (error, result) => {
-            if (error) reject(error);
-            else {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject(error);
+            } else {
               const category = getFileCategory(file.mimetype, file.originalname);
               const ext = file.originalname.toLowerCase().split('.').pop();
               resolve({
@@ -118,9 +145,12 @@ exports.uploadToCloudinary = async (req, res) => {
       files: uploadedFiles
     });
   } catch (error) {
+    console.error('Upload controller error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'Upload failed',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
