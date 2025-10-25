@@ -1,6 +1,5 @@
-const cloudinary = require('../config/cloudinary');
+const supabase = require('../config/supabase');
 const multer = require('multer');
-const streamifier = require('streamifier');
 
 // Format file size for display
 const formatFileSize = (bytes) => {
@@ -77,65 +76,41 @@ exports.uploadToCloudinary = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // Check Cloudinary config
-    if (!process.env.CLOUDINARY_URL && !process.env.CLOUDINARY_CLOUD_NAME) {
-      console.log('Cloudinary not configured - using fallback');
-      // Fallback: return mock URLs for testing
-      const files = req.files || [req.file];
-      const mockFiles = files.map(file => {
-        const category = getFileCategory(file.mimetype, file.originalname);
-        const ext = file.originalname.toLowerCase().split('.').pop();
-        return {
-          url: `https://via.placeholder.com/300x200?text=${encodeURIComponent(file.originalname)}`,
-          publicId: `mock_${Date.now()}`,
-          originalName: file.originalname,
-          size: file.size,
-          type: 'mock',
-          format: ext,
-          category,
-          extension: ext,
-          icon: getFileIcon(category, ext),
-          mimetype: file.mimetype,
-          sizeFormatted: formatFileSize(file.size)
-        };
-      });
-      return res.json({ success: true, files: mockFiles });
-    }
-
     const files = req.files || [req.file];
-    const uploadPromises = files.map(file => {
-      return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: 'auto',
-            folder: 'forum_uploads',
-            public_id: `${Date.now()}_${file.originalname.split('.')[0]}`
-          },
-          (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject(error);
-            } else {
-              const category = getFileCategory(file.mimetype, file.originalname);
-              const ext = file.originalname.toLowerCase().split('.').pop();
-              resolve({
-                url: result.secure_url,
-                publicId: result.public_id,
-                originalName: file.originalname,
-                size: file.size,
-                type: result.resource_type,
-                format: result.format,
-                category,
-                extension: ext,
-                icon: getFileIcon(category, ext),
-                mimetype: file.mimetype,
-                sizeFormatted: formatFileSize(file.size)
-              });
-            }
-          }
-        );
-        streamifier.createReadStream(file.buffer).pipe(uploadStream);
-      });
+    const uploadPromises = files.map(async (file) => {
+      const fileName = `${Date.now()}_${file.originalname}`;
+      
+      const { data: _data, error } = await supabase.storage
+        .from('uploads')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw error;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(fileName);
+
+      const category = getFileCategory(file.mimetype, file.originalname);
+      const ext = file.originalname.toLowerCase().split('.').pop();
+      
+      return {
+        url: publicUrl,
+        publicId: fileName,
+        originalName: file.originalname,
+        size: file.size,
+        type: 'file',
+        format: ext,
+        category,
+        extension: ext,
+        icon: getFileIcon(category, ext),
+        mimetype: file.mimetype,
+        sizeFormatted: formatFileSize(file.size)
+      };
     });
 
     const uploadedFiles = await Promise.all(uploadPromises);
