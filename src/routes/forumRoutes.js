@@ -17,7 +17,7 @@ const {
 } = require('../controllers/forumController');
 const {
   uploadMultiple,
-  uploadToCloudinary
+  // Remove: uploadToCloudinary
 } = require('../controllers/uploadController');
 
 // Post routes
@@ -39,6 +39,6 @@ router.delete('/comments/:id', protect, deleteComment);
 router.post('/comments/:id/like', protect, toggleCommentLike);
 
 // File upload routes
-router.post('/upload', protect, uploadMultiple, uploadToCloudinary);
+router.post('/upload', protect, uploadMultiple /*, uploadToCloudinary */);
 
 module.exports = router;

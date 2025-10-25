@@ -15,6 +15,7 @@ const opportunityRoutes = require('./routes/opportunityRoutes');
 const forumRoutes = require('./routes/forumRoutes');
 const safetyResourceRoutes = require('./routes/safetyResourceRoutes');
 const scholarshipRoutes = require('./routes/scholarshipRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const i18nMiddleware = require('./middleware/i18n');
 const { protect } = require('./middleware/auth'); // added
 const { requireAdmin } = require('./middleware/admin'); // added
@@ -162,6 +163,7 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/safety-resources', safetyResourceRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // --- Admin routes (protected + admin-only) ---
 const adminRouter = express.Router();
