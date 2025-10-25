@@ -6,7 +6,8 @@ const {
   handleFileUpload, 
   handleMultipleUpload,
   getFile,
-  serveFile
+  serveFile,
+  testSupabase
 } = require('../controllers/uploadController');
 const { protect } = require('../middleware/auth');
 
@@ -21,5 +22,8 @@ router.get('/file/:fileId', getFile);
 
 // Serve file directly
 router.get('/serve/:fileId', serveFile);
+
+// Test Supabase connection
+router.get('/test', testSupabase);
 
 module.exports = router;

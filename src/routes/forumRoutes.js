@@ -17,7 +17,8 @@ const {
 } = require('../controllers/forumController');
 const {
   uploadMultiple,
-  handleMultipleUpload
+  handleMultipleUpload,
+  testSupabase
 } = require('../controllers/uploadController');
 
 // Post routes
@@ -40,5 +41,8 @@ router.post('/comments/:id/like', protect, toggleCommentLike);
 
 // File upload routes
 router.post('/upload', protect, uploadMultiple, handleMultipleUpload);
+
+// Test Supabase connection
+router.get('/test-supabase', testSupabase);
 
 module.exports = router;
