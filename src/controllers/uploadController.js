@@ -1,8 +1,9 @@
 const supabase = require('../config/supabase');
+const { uploadToSupabase } = require('../utils/supabaseUpload');
 const multer = require('multer');
 
 // Format file size for display
-const formatFileSize = (bytes) => {
+const _formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -11,7 +12,7 @@ const formatFileSize = (bytes) => {
 };
 
 // Helper function to categorize file types
-const getFileCategory = (mimetype, originalname) => {
+const _getFileCategory = (mimetype, originalname) => {
   const ext = originalname.toLowerCase().split('.').pop();
   
   if (mimetype.startsWith('image/')) return 'image';
@@ -25,7 +26,7 @@ const getFileCategory = (mimetype, originalname) => {
 };
 
 // Get file icon based on type
-const getFileIcon = (category, _ext) => {
+const _getFileIcon = (category, _ext) => {
   const icons = {
     image: '',
     video: '',
@@ -67,66 +68,98 @@ exports.uploadSingle = upload.single('file');
 // Upload multiple files
 exports.uploadMultiple = upload.array('files', 5);
 
-// Upload to cloudinary
-exports.uploadToCloudinary = async (req, res) => {
+// Handle file upload to Supabase
+exports.handleFileUpload = async (req, res) => {
   try {
-    console.log('Upload request received:', { files: req.files?.length || 0, file: !!req.file });
-    
-    if (!req.file && !req.files) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const files = req.files || [req.file];
-    const uploadPromises = files.map(async (file) => {
-      const fileName = `${Date.now()}_${file.originalname}`;
-      
-      const { data: _data, error } = await supabase.storage
-        .from('uploads')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype
-        });
-
-      if (error) {
-        console.error('Supabase upload error:', error);
-        throw error;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(fileName);
-
-      const category = getFileCategory(file.mimetype, file.originalname);
-      const ext = file.originalname.toLowerCase().split('.').pop();
-      
-      return {
-        url: publicUrl,
-        publicId: fileName,
-        originalName: file.originalname,
-        size: file.size,
-        type: 'file',
-        format: ext,
-        category,
-        extension: ext,
-        icon: getFileIcon(category, ext),
-        mimetype: file.mimetype,
-        sizeFormatted: formatFileSize(file.size)
-      };
-    });
-
-    const uploadedFiles = await Promise.all(uploadPromises);
+    const result = await uploadToSupabase(req.file.buffer, 'forum');
     
     res.json({
       success: true,
-      files: uploadedFiles
+      url: result.secure_url,
+      fileId: result.public_id,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
     });
   } catch (error) {
-    console.error('Upload controller error:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Upload failed',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Handle multiple files upload
+exports.handleMultipleUpload = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const uploadPromises = req.files.map(file => 
+      uploadToSupabase(file.buffer, 'forum')
+    );
+    
+    const results = await Promise.all(uploadPromises);
+    
+    const files = results.map((result, index) => ({
+      url: result.secure_url,
+      fileId: result.public_id,
+      originalName: req.files[index].originalname,
+      size: req.files[index].size,
+      mimetype: req.files[index].mimetype
+    }));
+
+    res.json({
+      success: true,
+      files
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get file by ID
+exports.getFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const { data: publicUrl } = supabase.storage
+      .from('uploads')
+      .getPublicUrl(fileId);
+    
+    res.json({
+      success: true,
+      url: publicUrl.publicUrl,
+      fileId
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Serve file directly (proxy)
+exports.serveFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const { data, error } = await supabase.storage
+      .from('uploads')
+      .download(fileId);
+    
+    if (error) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const buffer = Buffer.from(await data.arrayBuffer());
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', data.type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'inline');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 

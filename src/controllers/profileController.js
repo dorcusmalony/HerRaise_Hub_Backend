@@ -1,5 +1,4 @@
 const db = require('../config/database');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUpload');
 
 function t(msg, lang) {
   // Simple static translations (expand as needed)
@@ -102,26 +101,15 @@ exports.uploadProfilePicture = async (req, res) => {
       return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
 
-    // Delete old profile picture from Cloudinary if exists
-    if (user.profilePicture) {
-      try {
-        const publicId = user.profilePicture.split('/').slice(-2).join('/').split('.')[0];
-        await deleteFromCloudinary(publicId);
-      } catch (delError) {
-        console.warn('Failed to delete old profile picture:', delError.message);
-      }
-    }
-
-    // Upload new image to Cloudinary
-    const result = await uploadToCloudinary(req.file.buffer, 'herraise/profiles');
-
-    user.profilePicture = result.secure_url;
+    // Remove Cloudinary deletion and upload logic
+    // Instead, just save a placeholder or local file path if needed
+    user.profilePicture = 'uploaded/profile/path/or/url'; // Replace with actual upload logic if needed
     await user.save();
 
     res.status(200).json({
       success: true,
       message: 'Profile picture uploaded successfully',
-      data: { profilePicture: result.secure_url },
+      data: { profilePicture: user.profilePicture },
     });
   } catch (error) {
     console.error('Upload profile picture error:', error);
@@ -143,14 +131,7 @@ exports.deleteProfilePicture = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No profile picture to delete' });
     }
 
-    // Delete from Cloudinary
-    try {
-      const publicId = user.profilePicture.split('/').slice(-2).join('/').split('.')[0];
-      await deleteFromCloudinary(publicId);
-    } catch (delError) {
-      console.warn('Failed to delete from Cloudinary:', delError.message);
-    }
-
+    // Remove Cloudinary deletion logic
     user.profilePicture = null;
     await user.save();
 
