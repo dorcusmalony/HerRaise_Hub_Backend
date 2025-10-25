@@ -16,7 +16,7 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     type: {
-      type: DataTypes.ENUM('scholarship', 'internship', 'competition'),
+      type: DataTypes.ENUM('scholarship', 'internship', 'competition', 'conference'),
       allowNull: false
     },
     deadline: {
@@ -32,9 +32,50 @@ module.exports = (sequelize) => {
     applicationUrl: {
       type: DataTypes.STRING
     },
+    location: {
+      type: DataTypes.STRING
+    },
+    organization: {
+      type: DataTypes.STRING
+    },
+    requirements: {
+      type: DataTypes.TEXT
+    },
+    benefits: {
+      type: DataTypes.TEXT
+    },
+    applicationDeadline: {
+      type: DataTypes.DATE
+    },
+    startDate: {
+      type: DataTypes.DATE
+    },
+    endDate: {
+      type: DataTypes.DATE
+    },
+    tags: {
+      type: DataTypes.JSON,
+      defaultValue: []
+    },
+    priority: {
+      type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'),
+      defaultValue: 'medium'
+    },
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
+    },
+    isFeatured: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    viewCount: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    applicationCount: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
     },
     postedBy: {
       type: DataTypes.UUID,
