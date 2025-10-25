@@ -93,12 +93,16 @@ exports.handleFileUpload = async (req, res) => {
 // Handle multiple files upload
 exports.handleMultipleUpload = async (req, res) => {
   try {
-    console.log('Upload request received:', {
+    console.log('=== UPLOAD REQUEST START ===');
+    console.log('Request headers:', req.headers);
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Files received:', {
       filesCount: req.files ? req.files.length : 0,
       files: req.files ? req.files.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : 'none'
     });
 
     if (!req.files || req.files.length === 0) {
+      console.log('No files in request');
       return res.status(400).json({ error: 'No files uploaded' });
     }
 
