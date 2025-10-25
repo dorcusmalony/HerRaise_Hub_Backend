@@ -21,6 +21,7 @@ const i18nMiddleware = require('./middleware/i18n');
 const { protect } = require('./middleware/auth'); // added
 const { requireAdmin } = require('./middleware/admin'); // added
 const db = require('./config/database'); // added to access models
+const { getDashboardStats, getSystemHealth, getRecentActivity, updateSettings } = require('./controllers/adminDashboardController');
 
 const app = express();
 
@@ -169,6 +170,12 @@ app.use('/api/admin/opportunities', adminOpportunityRoutes);
 
 // --- Admin routes (protected + admin-only) ---
 const adminRouter = express.Router();
+
+// Admin Dashboard
+adminRouter.get('/dashboard/stats', getDashboardStats);
+adminRouter.get('/dashboard/health', getSystemHealth);
+adminRouter.get('/dashboard/activity', getRecentActivity);
+adminRouter.put('/settings', updateSettings);
 
 // GET /api/admin/stats
 adminRouter.get('/stats', async (req, res) => {
