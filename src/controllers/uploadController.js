@@ -1,6 +1,5 @@
-const supabase = require('../config/supabase');
-const { uploadToSupabase } = require('../utils/supabaseUpload');
 const multer = require('multer');
+const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
 
 // Format file size for display
 const _formatFileSize = (bytes) => {
@@ -68,14 +67,14 @@ exports.uploadSingle = upload.single('file');
 // Upload multiple files
 exports.uploadMultiple = upload.array('files', 5);
 
-// Handle file upload to Supabase
+// Handle file upload to Cloudinary
 exports.handleFileUpload = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const result = await uploadToSupabase(req.file.buffer, 'forum');
+    const result = await uploadToCloudinary(req.file.buffer, 'forum');
     
     res.json({
       success: true,
@@ -94,8 +93,6 @@ exports.handleFileUpload = async (req, res) => {
 exports.handleMultipleUpload = async (req, res) => {
   try {
     console.log('=== UPLOAD REQUEST START ===');
-    console.log('Request headers:', req.headers);
-    console.log('Request body keys:', Object.keys(req.body));
     console.log('Files received:', {
       filesCount: req.files ? req.files.length : 0,
       files: req.files ? req.files.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : 'none'
@@ -109,7 +106,7 @@ exports.handleMultipleUpload = async (req, res) => {
     const uploadPromises = req.files.map(async (file, index) => {
       try {
         console.log(`Uploading file ${index + 1}:`, file.originalname);
-        const result = await uploadToSupabase(file.buffer, 'forum');
+        const result = await uploadToCloudinary(file.buffer, 'forum');
         console.log(`File ${index + 1} uploaded successfully:`, result.public_id);
         return result;
       } catch (err) {
@@ -144,13 +141,11 @@ exports.getFile = async (req, res) => {
   try {
     const { fileId } = req.params;
     
-    const { data: publicUrl } = supabase.storage
-      .from('herconect')
-      .getPublicUrl(fileId);
+    const cloudinaryUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${fileId}`;
     
     res.json({
       success: true,
-      url: publicUrl.publicUrl,
+      url: cloudinaryUrl,
       fileId
     });
   } catch (error) {
@@ -158,63 +153,14 @@ exports.getFile = async (req, res) => {
   }
 };
 
-// Serve file directly (proxy)
+// Serve file directly (redirect to Cloudinary)
 exports.serveFile = async (req, res) => {
   try {
     const { fileId } = req.params;
     
-    const { data, error } = await supabase.storage
-      .from('herconect')
-      .download(fileId);
-    
-    if (error) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    
-    const buffer = Buffer.from(await data.arrayBuffer());
-    
-    // Set appropriate headers
-    res.setHeader('Content-Type', data.type || 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'inline');
-    res.send(buffer);
+    const cloudinaryUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${fileId}`;
+    res.redirect(cloudinaryUrl);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Test Supabase connection
-exports.testSupabase = async (req, res) => {
-  try {
-    console.log('Testing Supabase connection...');
-    
-    // Test bucket access
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-    
-    if (bucketsError) {
-      console.error('Bucket list error:', bucketsError);
-      return res.status(500).json({ error: 'Cannot access buckets', details: bucketsError });
-    }
-    
-    console.log('Available buckets:', buckets);
-    
-    // Check if herconect bucket exists
-    const herconectBucket = buckets.find(b => b.name === 'herconect');
-    
-    if (!herconectBucket) {
-      return res.status(404).json({ 
-        error: 'herconect bucket not found', 
-        availableBuckets: buckets.map(b => b.name) 
-      });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Supabase connection working',
-      buckets: buckets.map(b => b.name),
-      herconectBucket: herconectBucket
-    });
-  } catch (error) {
-    console.error('Supabase test error:', error);
     res.status(500).json({ error: error.message });
   }
 };
