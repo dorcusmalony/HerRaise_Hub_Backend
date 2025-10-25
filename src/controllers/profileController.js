@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUpload');
 
 function t(msg, lang) {
   // Simple static translations (expand as needed)
@@ -101,9 +102,20 @@ exports.uploadProfilePicture = async (req, res) => {
       return res.status(404).json({ success: false, message: t('User not found', req.lang) });
     }
 
-    // Remove Cloudinary deletion and upload logic
-    // Instead, just save a placeholder or local file path if needed
-    user.profilePicture = 'uploaded/profile/path/or/url'; // Replace with actual upload logic if needed
+    // Delete old profile picture if exists
+    if (user.profilePicture) {
+      try {
+        const publicId = user.profilePicture.split('/').pop().split('.')[0];
+        await deleteFromCloudinary(publicId);
+      } catch (deleteError) {
+        console.log('Error deleting old profile picture:', deleteError);
+      }
+    }
+
+    // Upload new profile picture
+    const result = await uploadToCloudinary(req.file.buffer, 'profiles');
+    
+    user.profilePicture = result.secure_url;
     await user.save();
 
     res.status(200).json({
@@ -131,7 +143,14 @@ exports.deleteProfilePicture = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No profile picture to delete' });
     }
 
-    // Remove Cloudinary deletion logic
+    // Delete from Cloudinary
+    try {
+      const publicId = user.profilePicture.split('/').pop().split('.')[0];
+      await deleteFromCloudinary(publicId);
+    } catch (deleteError) {
+      console.log('Error deleting from Cloudinary:', deleteError);
+    }
+
     user.profilePicture = null;
     await user.save();
 
