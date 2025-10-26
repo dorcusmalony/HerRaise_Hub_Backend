@@ -7,96 +7,46 @@ const db = require('./database');
 AdminJS.registerAdapter(AdminJSSequelize);
 
 // AdminJS configuration
-const adminOptions = {
+const adminJs = new AdminJS({
   resources: [
     {
       resource: db.models.User,
       options: {
         properties: {
-          password: { isVisible: false },
-          resetPasswordToken: { isVisible: false },
-          resetPasswordExpire: { isVisible: false }
-        },
-        actions: {
-          new: {
-            before: async (request) => {
-              if (request.payload.password) {
-                const bcrypt = require('bcryptjs');
-                request.payload.password = await bcrypt.hash(request.payload.password, 12);
-              }
-              return request;
-            }
-          }
+          password: { isVisible: false }
         }
       }
     },
-    {
-      resource: db.models.ForumPost,
-      options: {
-        properties: {
-          content: { type: 'textarea' }
-        }
-      }
-    },
-    {
-      resource: db.models.Scholarship,
-      options: {
-        properties: {
-          description: { type: 'textarea' },
-          eligibility: { type: 'textarea' },
-          requirements: { type: 'textarea' },
-          benefits: { type: 'textarea' }
-        }
-      }
-    },
+    db.models.ForumPost,
+    db.models.Scholarship,
     db.models.Resource,
-    db.models.Opportunity,
-    db.models.MentorProfile,
-    db.models.Report,
-    db.models.ForumComment
+    db.models.Opportunity
   ],
   rootPath: '/admin',
   branding: {
     companyName: 'HerRaise Hub',
-    logo: false,
-    softwareBrothers: false,
-  },
-  dashboard: {
-    handler: async () => {
-      const stats = await Promise.all([
-        db.models.User.count(),
-        db.models.ForumPost.count(),
-        db.models.Scholarship.count(),
-        db.models.Resource.count()
-      ]);
-      
-      return {
-        totalUsers: stats[0],
-        totalPosts: stats[1],
-        totalScholarships: stats[2],
-        totalResources: stats[3]
-      };
-    }
+    softwareBrothers: false
   }
-};
+});
 
-const adminJs = new AdminJS(adminOptions);
-
-// Authentication
+// Authentication function
 const authenticate = async (email, password) => {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  
-  if (email === adminEmail && password === adminPassword) {
-    return { email: adminEmail, role: 'admin' };
+  console.log('AdminJS login attempt:', email);
+  if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+    console.log('AdminJS login successful');
+    return { email, role: 'admin' };
   }
+  console.log('AdminJS login failed');
   return null;
 };
 
+// Build router with session configuration
 const adminRouter = AdminJSExpress.buildAuthenticatedRouter(adminJs, {
   authenticate,
   cookieName: 'adminjs',
-  cookiePassword: process.env.JWT_SECRET || 'admin-secret-key',
+  cookiePassword: process.env.JWT_SECRET || 'very-long-secret-key-for-adminjs-sessions',
+  resave: false,
+  saveUninitialized: false
 });
 
 module.exports = { adminJs, adminRouter };

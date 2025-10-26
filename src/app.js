@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const i18n = require('i18n');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
 
 const authRoutes = require('./routes/authRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
@@ -64,6 +65,17 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// ------------------ SESSION FOR ADMINJS ------------------
+app.use(session({
+  secret: process.env.JWT_SECRET || 'very-long-secret-key-for-sessions',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 // ------------------ ADMINJS (MUST BE BEFORE BODY PARSER) ------------------
 // AdminJS routes
