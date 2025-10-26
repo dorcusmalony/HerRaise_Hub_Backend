@@ -10,7 +10,8 @@ const {
   toggleStatus,
   toggleFeatured,
   getStats,
-  bulkUpdate
+  bulkUpdate,
+  registerAdmin // Add this import
 } = require('../controllers/adminOpportunityController');
 
 // Apply admin protection to all routes
@@ -31,5 +32,8 @@ router.patch('/:id/toggle-featured', toggleFeatured);
 
 // Bulk operations
 router.post('/bulk', bulkUpdate);
+
+// Admin registration route
+router.post('/register', registerAdmin);
 
 module.exports = router;
