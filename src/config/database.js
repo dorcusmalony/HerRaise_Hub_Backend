@@ -405,11 +405,19 @@ const connectDB = async () => {
   const Notification = sequelize.define('Notification', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     userId: { type: DataTypes.UUID, allowNull: false },
-    type: { type: DataTypes.ENUM('scholarship', 'application_update', 'deadline_reminder'), allowNull: false },
+    type: { 
+      type: DataTypes.ENUM(
+        'forum_question', 'forum_answer', 'forum_comment', 'forum_like', 
+        'opportunity', 'website_update', 'scholarship', 'application_update', 'deadline_reminder'
+      ), 
+      allowNull: false 
+    },
     title: { type: DataTypes.STRING, allowNull: false },
     message: { type: DataTypes.TEXT, allowNull: false },
+    data: { type: DataTypes.JSONB, defaultValue: {} },
+    priority: { type: DataTypes.ENUM('low', 'normal', 'high'), defaultValue: 'normal' },
+    readStatus: { type: DataTypes.BOOLEAN, defaultValue: false },
     relatedId: DataTypes.UUID,
-    isRead: { type: DataTypes.BOOLEAN, defaultValue: false },
     link: DataTypes.STRING
   }, { timestamps: true });
 

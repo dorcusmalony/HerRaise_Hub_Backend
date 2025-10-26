@@ -9,10 +9,21 @@ module.exports = (sequelize) => {
     },
     userId: {
       type: DataTypes.UUID,
-      allowNull: false
+      allowNull: false,
+      field: 'user_id'
     },
     type: {
-      type: DataTypes.ENUM('scholarship', 'application_update', 'deadline_reminder'),
+      type: DataTypes.ENUM(
+        'forum_question', 
+        'forum_answer', 
+        'forum_comment', 
+        'forum_like', 
+        'opportunity', 
+        'application', 
+        'reminder', 
+        'mentorship',
+        'website_update'
+      ),
       allowNull: false
     },
     title: {
@@ -23,16 +34,24 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: false
     },
-    relatedId: {
-      type: DataTypes.UUID
+    data: {
+      type: DataTypes.JSON,
+      defaultValue: {}
     },
-    isRead: {
+    readStatus: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false
+      defaultValue: false,
+      field: 'read_status'
     },
-    link: {
-      type: DataTypes.STRING
+    priority: {
+      type: DataTypes.ENUM('low', 'normal', 'high'),
+      defaultValue: 'normal'
     }
+  }, {
+    tableName: 'notifications',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   });
 
   return Notification;

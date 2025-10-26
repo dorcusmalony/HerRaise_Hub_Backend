@@ -152,6 +152,19 @@ exports.createPost = async (req, res) => {
       }]
     });
 
+    // Send notification to all users about new post
+    const NotificationService = require('../services/notificationService');
+    await NotificationService.notifyNewForumQuestion(
+      {
+        id: post.id,
+        title: title,
+        author: {
+          name: req.user.name
+        }
+      },
+      req.user.id
+    );
+
     res.status(201).json({
       success: true,
       post
