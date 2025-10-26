@@ -5,13 +5,6 @@ const dbModule = require('./src/config/database');
 const seedBadges = require('./src/utils/seedBadges');
 const { initializeSocket } = require('./src/services/socketService');
 const { initializeCronJobs } = require('./src/services/reminderService');
-let AdminJS;
-(async () => {
-  AdminJS = (await import('adminjs')).default;
-})();
-
-const AdminJSExpress = require('@adminjs/express');
-const AdminJSSequelize = require('@adminjs/sequelize');
 
 // Use PORT from environment (Render sets this) with 5000 fallback
 const PORT = process.env.PORT || 5000;
@@ -64,32 +57,6 @@ async function start() {
       console.log('\nSIGTERM received, shutting down.');
       server.close(() => process.exit(0));
     });
-
-    // After DB connection and model sync
-    const adminJs = new AdminJS({
-      databases: [dbModule.sequelize],
-      rootPath: '/admin',
-      resources: Object.values(dbModule.models),
-      branding: {
-        companyName: 'HerRaise Hub',
-        logo: false,
-        softwareBrothers: false
-      }
-    });
-
-    // AdminJS authentication
-    const adminRouter = AdminJSExpress.buildAuthenticatedRouter(adminJs, {
-      authenticate: async (email, password) => {
-        return (
-          email === process.env.ADMIN_EMAIL &&
-          password === process.env.ADMIN_PASSWORD
-        ) ? { email } : null;
-      },
-      cookieName: 'adminjs',
-      cookiePassword: process.env.JWT_SECRET || 'adminjs-cookie-secret'
-    });
-
-    app.use(adminJs.options.rootPath, adminRouter);
 
   } catch (err) {
     console.error('Failed to start server:', err);
