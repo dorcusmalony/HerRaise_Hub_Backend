@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { Op } = require('sequelize');
+const bcrypt = require('bcryptjs');
 
 // Get all opportunities with filters and pagination
 exports.getOpportunities = async (req, res) => {
@@ -241,5 +242,43 @@ exports.bulkUpdate = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Register a new admin account (admin-only)
+exports.registerAdmin = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+
+    const User = db.models.User;
+    const existing = await User.findOne({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Email already in use.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: 'admin'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Admin account created successfully.',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

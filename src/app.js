@@ -17,6 +17,7 @@ const safetyResourceRoutes = require('./routes/safetyResourceRoutes');
 const scholarshipRoutes = require('./routes/scholarshipRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const adminOpportunityRoutes = require('./routes/adminOpportunityRoutes');
+const { adminRouter } = require('./config/adminjs');
 const i18nMiddleware = require('./middleware/i18n');
 const { protect } = require('./middleware/auth'); // added
 const { requireAdmin } = require('./middleware/admin'); // added
@@ -168,10 +169,10 @@ app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin/opportunities', adminOpportunityRoutes);
 
-// --- Admin routes (protected + admin-only) ---
-const adminRouter = express.Router();
+// AdminJS routes
+app.use(adminRouter);
 
-// Admin Dashboard
+// --- Admin routes (protected + admin-only) ---
 adminRouter.get('/dashboard/stats', getDashboardStats);
 adminRouter.get('/dashboard/health', getSystemHealth);
 adminRouter.get('/dashboard/activity', getRecentActivity);
