@@ -22,7 +22,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@adminjs/express": "^5.1.0",
+    "@adminjs/sequelize": "^3.0.0",
     "@supabase/supabase-js": "^2.76.1",
+    "adminjs": "^6.8.7",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.0",
     "cookie-parser": "^1.4.7",
@@ -38,12 +41,12 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.9",
-    "pg": "^8.11.3",
+    "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
-    "sequelize": "^6.35.2",
+    "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
     "streamifier": "^0.1.1",
-    "cloudinary": "^1.41.0"
+    "express-session": "^1.17.3"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
