@@ -92,6 +92,15 @@ exports.uploadResource = async (req, res) => {
       isApproved: req.user.role === 'admin' // Auto-approve for admins
     });
 
+    // Send notifications to all users if approved
+    if (resource.isApproved) {
+      const NotificationService = require('../services/notificationService');
+      await NotificationService.notifyNewResource({
+        id: resource._id,
+        title: resource.title
+      });
+    }
+
     res.status(201).json({
       success: true,
       resource
@@ -229,6 +238,13 @@ exports.approveResource = async (req, res) => {
 
     resource.isApproved = true;
     await resource.save();
+
+    // Send notifications to all users when resource is approved
+    const NotificationService = require('../services/notificationService');
+    await NotificationService.notifyNewResource({
+      id: resource._id,
+      title: resource.title
+    });
 
     res.status(200).json({
       success: true,

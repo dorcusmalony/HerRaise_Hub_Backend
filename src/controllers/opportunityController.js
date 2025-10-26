@@ -1,6 +1,6 @@
 const Opportunity = require('../models/Opportunity');
 const db = require('../config/database');
-const { notifyNewOpportunity, notifyApplicationStatus } = require('../services/socketService');
+const { notifyApplicationStatus } = require('../services/socketService');
 
 function t(msg, lang) {
   const dict = {
@@ -105,9 +105,6 @@ exports.createOpportunity = async (req, res) => {
 
     const opportunity = await Opportunity.create(opportunityData);
     
-    // Emit real-time notification
-    notifyNewOpportunity(opportunity);
-
     res.status(201).json({
       success: true,
       opportunity

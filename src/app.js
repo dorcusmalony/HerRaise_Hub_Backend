@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const i18n = require('i18n');
 const cookieParser = require('cookie-parser');
-const session = require('express-session');
 
 const authRoutes = require('./routes/authRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
@@ -18,7 +17,10 @@ const safetyResourceRoutes = require('./routes/safetyResourceRoutes');
 const scholarshipRoutes = require('./routes/scholarshipRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const adminOpportunityRoutes = require('./routes/adminOpportunityRoutes');
-const { adminRouter } = require('./config/adminjs');
+const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+// Simple admin router
+const adminRouter = require('express').Router();
 const i18nMiddleware = require('./middleware/i18n');
 const { protect } = require('./middleware/auth'); // added
 const { requireAdmin } = require('./middleware/admin'); // added
@@ -66,20 +68,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// ------------------ SESSION FOR ADMINJS ------------------
-app.use(session({
-  secret: process.env.JWT_SECRET || 'very-long-secret-key-for-sessions',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// ------------------ ADMINJS (MUST BE BEFORE BODY PARSER) ------------------
-// AdminJS routes
-app.use(adminRouter);
+// ------------------ SIMPLE ADMIN ROUTES ------------------
 
 // ------------------ BODY PARSING ------------------
 app.use(express.json({
@@ -183,7 +172,9 @@ app.use('/api/forum', forumRoutes);
 app.use('/api/safety-resources', safetyResourceRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/opportunities', adminOpportunityRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // --- Admin routes (protected + admin-only) ---
 adminRouter.get('/dashboard/stats', getDashboardStats);
