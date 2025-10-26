@@ -65,6 +65,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// ------------------ ADMINJS (MUST BE BEFORE BODY PARSER) ------------------
+// AdminJS routes
+app.use(adminRouter);
+
 // ------------------ BODY PARSING ------------------
 app.use(express.json({
   limit: '50mb',
@@ -168,9 +172,6 @@ app.use('/api/safety-resources', safetyResourceRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin/opportunities', adminOpportunityRoutes);
-
-// AdminJS routes
-app.use(adminRouter);
 
 // --- Admin routes (protected + admin-only) ---
 adminRouter.get('/dashboard/stats', getDashboardStats);
