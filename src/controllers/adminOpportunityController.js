@@ -245,6 +245,66 @@ exports.bulkUpdate = async (req, res) => {
   }
 };
 
+// Get all opportunities and scholarships combined
+exports.getAllOpportunities = async (req, res) => {
+  try {
+    const { Opportunity, Scholarship, User } = db.models;
+    
+    // Get both opportunities and scholarships
+    const [opportunities, scholarships] = await Promise.all([
+      Opportunity.findAll({
+        include: [{ model: User, as: 'creator', attributes: ['id', 'name'] }],
+        order: [['createdAt', 'DESC']]
+      }),
+      Scholarship.findAll({
+        include: [{ model: User, attributes: ['id', 'name'] }],
+        order: [['createdAt', 'DESC']]
+      })
+    ]);
+
+    // Combine and format
+    const combined = [
+      ...opportunities.map(opp => ({ ...opp.toJSON(), source: 'opportunity' })),
+      ...scholarships.map(sch => ({ ...sch.toJSON(), source: 'scholarship' }))
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({
+      success: true,
+      count: combined.length,
+      opportunities: combined
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Create opportunity or scholarship
+exports.createItem = async (req, res) => {
+  try {
+    const { source, ...data } = req.body;
+    const { Opportunity, Scholarship } = db.models;
+    
+    let item;
+    if (source === 'scholarship') {
+      item = await Scholarship.create({ ...data, postedBy: req.user.id });
+    } else {
+      item = await Opportunity.create({ ...data, creatorId: req.user.id });
+    }
+
+    // Send notification
+    const NotificationService = require('../services/notificationService');
+    await NotificationService.notifyNewOpportunity({
+      id: item.id,
+      title: item.title,
+      type: source === 'scholarship' ? 'scholarship' : item.type
+    });
+
+    res.status(201).json({ success: true, item });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Register a new admin account (admin-only)
 exports.registerAdmin = async (req, res) => {
   try {

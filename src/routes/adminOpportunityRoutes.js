@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/admin');
+const adminJwt = require('../middleware/adminJwt');
 const {
   getOpportunities,
   createOpportunity,
@@ -11,18 +10,22 @@ const {
   toggleFeatured,
   getStats,
   bulkUpdate,
-  registerAdmin // Add this import
+  registerAdmin,
+  getAllOpportunities,
+  createItem
 } = require('../controllers/adminOpportunityController');
 
-// Apply admin protection to all routes
-router.use(protect, requireAdmin);
+// Apply JWT protection to all admin routes
+router.use(adminJwt);
 
 // Statistics
 router.get('/stats', getStats);
 
 // CRUD operations
 router.get('/', getOpportunities);
+router.get('/all', getAllOpportunities); // Combined opportunities + scholarships
 router.post('/', createOpportunity);
+router.post('/create', createItem); // Create opportunity or scholarship
 router.put('/:id', updateOpportunity);
 router.delete('/:id', deleteOpportunity);
 

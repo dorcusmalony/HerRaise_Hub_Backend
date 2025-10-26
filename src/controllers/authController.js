@@ -59,12 +59,7 @@ function formatUserForResponse(userInstance) {
   return formatted;
 }
 
-// Quick fix - add this before the function that uses sendEmail:
-const sendEmail = async (options) => {
-  // TODO: Implement email sending (nodemailer, sendgrid, etc.)
-  console.log('📧 Email would be sent:', options);
-  // For now, just log. Replace with actual email service later.
-};
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -334,21 +329,11 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Generate reset token
-    const resetToken = user.createPasswordResetToken();
+    const resetToken = user.getResetPasswordToken();
     await user.save();
 
-    // Remove or use the resetUrl variable:
-    // const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    
-    // OR if you need it, use it in your email:
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    
-    // Send email with resetUrl
-    await sendEmail({
-      to: user.email,
-      subject: 'Password Reset',
-      text: `Reset your password here: ${resetUrl}`
-    });
+    // Send password reset email
+    await sendPasswordResetEmail(user.email, resetToken, user.name);
 
     res.status(200).json({
       success: true,

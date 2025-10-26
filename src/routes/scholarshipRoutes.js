@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth'); // Remove authorize
+const adminJwt = require('../middleware/adminJwt'); // Add this line
 const {
   getScholarships,
   createScholarship,
@@ -12,7 +13,7 @@ const {
 
 // Scholarship routes
 router.get('/', getScholarships);
-router.post('/', protect, authorize('admin', 'mentor'), createScholarship);
+router.post('/', adminJwt, createScholarship);
 
 // Application routes
 router.post('/:scholarshipId/apply', protect, applyForScholarship);
