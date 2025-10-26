@@ -5,7 +5,11 @@ const dbModule = require('./src/config/database');
 const seedBadges = require('./src/utils/seedBadges');
 const { initializeSocket } = require('./src/services/socketService');
 const { initializeCronJobs } = require('./src/services/reminderService');
-const AdminJS = require('adminjs');
+let AdminJS;
+(async () => {
+  AdminJS = (await import('adminjs')).default;
+})();
+
 const AdminJSExpress = require('@adminjs/express');
 const AdminJSSequelize = require('@adminjs/sequelize');
 
