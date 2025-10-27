@@ -153,6 +153,7 @@ exports.createPost = async (req, res) => {
     });
 
     // Send notification to all users about new post
+    console.log('📝 Creating forum post notification for:', title);
     const NotificationService = require('../services/notificationService');
     await NotificationService.notifyNewForumQuestion(
       {
@@ -164,6 +165,14 @@ exports.createPost = async (req, res) => {
       },
       req.user.id
     );
+    console.log('✅ Forum post notification sent');
+    const { broadcast } = require('../utils/socket');
+    broadcast('notification', {
+      type: 'forum_post',
+      title: 'New Post!',
+      message: `${req.user.name} posted: ${title}`,
+      postId: post.id
+    });
 
     res.status(201).json({
       success: true,

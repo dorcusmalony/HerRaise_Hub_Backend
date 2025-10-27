@@ -1,36 +1,50 @@
 {
-  "welcome": "Welcome",
-  "login": "Login",
-  "register": "Register",
-  "logout": "Logout",
-  "profile": "Profile",
-  "language": "Language",
-  "submit": "Submit",
-  "cancel": "Cancel",
-  "home": "Home",
-  "opportunities": "Opportunities",
-  "forum": "Forum",
-  "resources": "Resources",
-  "mentors": "Mentors",
-  "search": "Search",
-  "settings": "Settings",
-  "notifications": "Notifications",
-  "save": "Save",
-  "edit": "Edit",
-  "delete": "Delete",
-  "yes": "Yes",
-  "no": "No",
-  "next": "Next",
-  "previous": "Previous",
-  "error": "Error",
-  "success": "Success",
-  "loading": "Loading...",
-  "not_found": "Not found",
-  "required": "Required",
-  "email": "Email",
-  "password": "Password",
-  "name": "Name",
-  "choose_language": "Choose Language",
-  "english": "English",
-  "juba_arabic": "Juba Arabic"
+  "messages": {
+    "success": "Success",
+    "error": "Error",
+    "notFound": "Not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "validationError": "Validation error"
+  },
+  "opportunities": {
+    "notFound": "Opportunity not found",
+    "clickTracked": "Click tracked",
+    "bookmarked": "Bookmarked",
+    "unbookmarked": "Removed from bookmarks",
+    "types": {
+      "scholarship": "Scholarship",
+      "internship": "Internship",
+      "competition": "Competition"
+    }
+  },
+  "forum": {
+    "postNotFound": "Post not found",
+    "commentNotFound": "Comment not found",
+    "liked": "Liked",
+    "unliked": "Unliked",
+    "postCreated": "Post created successfully",
+    "commentCreated": "Comment created successfully"
+  },
+  "auth": {
+    "loginSuccess": "Login successful",
+    "registerSuccess": "Registration successful",
+    "invalidCredentials": "Invalid credentials",
+    "emailExists": "Email already exists",
+    "passwordResetSent": "Password reset email sent",
+    "passwordResetSuccess": "Password reset successful"
+  },
+  "applications": {
+    "notFound": "Application not found",
+    "statusUpdated": "Application status updated",
+    "reminderSent": "Reminder sent",
+    "statuses": {
+      "planning": "Planning",
+      "in_progress": "In Progress",
+      "submitted": "Submitted",
+      "interview": "Interview",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    }
+  }
 }

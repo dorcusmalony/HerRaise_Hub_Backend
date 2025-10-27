@@ -33,7 +33,12 @@ class NotificationService {
   // Send real-time notification via socket
   sendSocketNotification(userId, notification) {
     const io = getIO();
-    io.to(`user_${userId}`).emit('notification', notification);
+    if (io) {
+      console.log(`📤 Sending socket notification to user_${userId}:`, notification.title);
+      io.to(`user_${userId}`).emit('notification', notification);
+    } else {
+      console.log('⚠️ Socket.IO not initialized');
+    }
   }
 
   // Send push notification

@@ -1,6 +1,6 @@
 const Opportunity = require('../models/Opportunity');
 const db = require('../config/database');
-const { notifyApplicationStatus } = require('../services/socketService');
+const { notifyApplicationStatus, broadcast } = require('../services/socketService');
 
 function t(msg, lang) {
   const dict = {
@@ -105,6 +105,14 @@ exports.createOpportunity = async (req, res) => {
 
     const opportunity = await Opportunity.create(opportunityData);
     
+    // Emit notification for new opportunity
+    broadcast('notification', {
+      type: 'opportunity_update',
+      title: 'New Opportunity!',
+      message: `${opportunity.title} (${opportunity.type}) was just posted.`,
+      opportunityId: opportunity.id
+    });
+
     res.status(201).json({
       success: true,
       opportunity
@@ -141,6 +149,14 @@ exports.updateOpportunity = async (req, res) => {
 
     Object.assign(opportunity, req.body);
     await opportunity.save();
+
+    // Emit notification for updated opportunity
+    broadcast('notification', {
+      type: 'opportunity_update',
+      title: 'Opportunity Updated',
+      message: `${opportunity.title} (${opportunity.type}) was updated.`,
+      opportunityId: opportunity.id
+    });
 
     res.status(200).json({
       success: true,
