@@ -166,13 +166,6 @@ exports.createPost = async (req, res) => {
       req.user.id
     );
     console.log('✅ Forum post notification sent');
-    const { broadcast } = require('../utils/socket');
-    broadcast('notification', {
-      type: 'forum_post',
-      title: 'New Post!',
-      message: `${req.user.name} posted: ${title}`,
-      postId: post.id
-    });
 
     res.status(201).json({
       success: true,

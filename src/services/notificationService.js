@@ -45,6 +45,11 @@ class NotificationService {
   async sendPushNotification(userId, notification) {
     try {
       const { PushSubscription } = db.models;
+      if (!PushSubscription) {
+        console.log('⚠️ PushSubscription model not found, skipping push notifications');
+        return;
+      }
+      
       const subscriptions = await PushSubscription.findAll({
         where: { userId }
       });
