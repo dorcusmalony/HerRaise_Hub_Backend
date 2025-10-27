@@ -1,11 +1,4 @@
 const db = require('../config/database');
-const {
-  trackApplication,
-  getMyApplications,
-  updateApplicationStatus,
-  setReminder,
-  getApplicationStats
-} = require('../services/applicationTrackerService');
 
 // Add application to tracker
 exports.trackApplication = async (req, res) => {
@@ -235,9 +228,9 @@ exports.getApplicationStats = async (req, res) => {
 };
 
 module.exports = {
-  trackApplication,
-  getMyApplications,
-  updateApplicationStatus,
-  setReminder,
-  getApplicationStats
+  trackApplication: exports.trackApplication,
+  getMyApplications: exports.getMyApplications,
+  updateApplicationStatus: exports.updateApplicationStatus,
+  setReminder: exports.setReminder,
+  getApplicationStats: exports.getApplicationStats
 };
