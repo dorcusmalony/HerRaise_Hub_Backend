@@ -1,0 +1,50 @@
+{
+  "messages": {
+    "success": "نجح",
+    "error": "خطأ",
+    "notFound": "غير موجود",
+    "unauthorized": "غير مخول",
+    "forbidden": "ممنوع",
+    "validationError": "خطأ في التحقق"
+  },
+  "opportunities": {
+    "notFound": "الفرصة غير موجودة",
+    "clickTracked": "تم تتبع النقرة",
+    "bookmarked": "تم الحفظ",
+    "unbookmarked": "تم الإزالة من المحفوظات",
+    "types": {
+      "scholarship": "منحة دراسية",
+      "internship": "تدريب",
+      "competition": "مسابقة"
+    }
+  },
+  "forum": {
+    "postNotFound": "المنشور غير موجود",
+    "commentNotFound": "التعليق غير موجود",
+    "liked": "تم الإعجاب",
+    "unliked": "تم إلغاء الإعجاب",
+    "postCreated": "تم إنشاء المنشور بنجاح",
+    "commentCreated": "تم إنشاء التعليق بنجاح"
+  },
+  "auth": {
+    "loginSuccess": "تم تسجيل الدخول بنجاح",
+    "registerSuccess": "تم التسجيل بنجاح",
+    "invalidCredentials": "بيانات اعتماد غير صحيحة",
+    "emailExists": "البريد الإلكتروني موجود بالفعل",
+    "passwordResetSent": "تم إرسال رسالة إعادة تعيين كلمة المرور",
+    "passwordResetSuccess": "تم إعادة تعيين كلمة المرور بنجاح"
+  },
+  "applications": {
+    "notFound": "الطلب غير موجود",
+    "statusUpdated": "تم تحديث حالة الطلب",
+    "reminderSent": "تم إرسال التذكير",
+    "statuses": {
+      "planning": "التخطيط",
+      "in_progress": "قيد التنفيذ",
+      "submitted": "مقدم",
+      "interview": "مقابلة",
+      "accepted": "مقبول",
+      "rejected": "مرفوض"
+    }
+  }
+}

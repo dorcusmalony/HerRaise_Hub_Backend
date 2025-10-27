@@ -5,6 +5,7 @@ const dbModule = require('./src/config/database');
 const seedBadges = require('./src/utils/seedBadges');
 const { initializeSocket } = require('./src/services/socketService');
 const { initializeCronJobs } = require('./src/services/reminderService');
+const { initializeReminderCrons } = require('./src/services/applicationReminderService');
 
 // Use PORT from environment (Render sets this) with 5000 fallback
 const PORT = process.env.PORT || 5000;
@@ -34,6 +35,9 @@ async function start() {
     
     // Initialize Cron Jobs for reminders
     initializeCronJobs();
+    
+    // Initialize Application Reminder Crons
+    initializeReminderCrons();
 
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {
