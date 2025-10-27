@@ -324,7 +324,7 @@ const connectDB = async () => {
     title: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: false },
     type: { 
-      type: DataTypes.ENUM('internship', 'scholarship', 'event', 'job', 'workshop'), 
+      type: DataTypes.ENUM('internship', 'scholarship', 'event', 'job', 'workshop', 'competition'), 
       allowNull: false 
     },
     organization: DataTypes.STRING,
@@ -333,13 +333,17 @@ const connectDB = async () => {
     startDate: DataTypes.DATE,
     endDate: DataTypes.DATE,
     eligibilityCriteria: { type: DataTypes.JSONB, defaultValue: [] },
-    applicationLink: DataTypes.TEXT,
+    applicationLink: { type: DataTypes.TEXT, allowNull: false }, // External link
     contactEmail: DataTypes.STRING,
     requirements: { type: DataTypes.JSONB, defaultValue: [] },
     benefits: { type: DataTypes.JSONB, defaultValue: [] },
+    amount: DataTypes.STRING, // For scholarships
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
+    isFeatured: { type: DataTypes.BOOLEAN, defaultValue: false },
     views: { type: DataTypes.INTEGER, defaultValue: 0 },
-    applicants: { type: DataTypes.JSONB, defaultValue: [] }
+    clickCount: { type: DataTypes.INTEGER, defaultValue: 0 }, // Track external clicks
+    interestedUsers: { type: DataTypes.JSONB, defaultValue: [] }, // Users who bookmarked
+    tags: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
 
   const Application = sequelize.define('Application', {
@@ -472,6 +476,13 @@ const connectDB = async () => {
   User.hasMany(Notification, { foreignKey: 'userId' });
   Notification.belongsTo(User, { foreignKey: 'userId' });
 
+  // User Application Tracker
+  const UserApplication = require('../models/UserApplication')(sequelize);
+  User.hasMany(UserApplication, { foreignKey: 'userId' });
+  UserApplication.belongsTo(User, { foreignKey: 'userId' });
+  Opportunity.hasMany(UserApplication, { foreignKey: 'opportunityId' });
+  UserApplication.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
+
   // Exported models
   exportedModels = {
     User,
@@ -486,7 +497,8 @@ const connectDB = async () => {
     ForumComment,
     Scholarship,
     ScholarshipApplication,
-    Notification
+    Notification,
+    UserApplication
   };
 
   // Sync models: non-Report first, then recreate Report only if forced

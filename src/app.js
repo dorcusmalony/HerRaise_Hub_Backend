@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const i18n = require('i18n');
 const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/authRoutes');
@@ -19,8 +18,12 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const adminOpportunityRoutes = require('./routes/adminOpportunityRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const mediaRoutes = require('./routes/mediaRoutes');
+const opportunityBoardRoutes = require('./routes/opportunityBoardRoutes');
+const applicationTrackerRoutes = require('./routes/applicationTrackerRoutes');
+const languageRoutes = require('./routes/languageRoutes');
 
-const i18nMiddleware = require('./middleware/i18n');
+const i18nMiddleware = require('./middleware/i18nMiddleware');
 
 const app = express();
 
@@ -84,39 +87,8 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(cookieParser());
 
-// Configure i18n for bilingual support
-i18n.configure({
-    locales: ['en', 'juba-ar'],
-    defaultLocale: 'en',
-    cookie: 'language',
-    directory: __dirname + '/locales',
-    queryParameter: 'lang',
-    autoReload: true,
-    updateFiles: false,
-    objectNotation: true
-});
-
 // Add i18n middleware
-app.use(i18n.init);
-
-// Language detection and switching middleware
-app.use((req, res, next) => {
-    let language = req.query.lang || req.cookies.language || 'en';
-    if (!['en', 'juba-ar'].includes(language)) {
-        language = 'en';
-    }
-    res.setLocale(language);
-    if (req.query.lang) {
-        res.cookie('language', language, { 
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-            httpOnly: true 
-        });
-    }
-    res.locals.__ = res.__;
-    res.locals.__n = res.__n;
-    res.locals.currentLanguage = language;
-    next();
-});
+app.use(i18nMiddleware);
 
 // ------------------ STATIC FILES ------------------
 // Serve uploaded files (only needed if using local storage)
@@ -170,25 +142,33 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/opportunities', adminOpportunityRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/opportunity-board', opportunityBoardRoutes);
+app.use('/api/application-tracker', applicationTrackerRoutes);
+app.use('/api', languageRoutes);
 
 
 
-// API endpoint for client-side translations (for dynamic content)
+// API endpoint for client-side translations
 app.get('/api/translations', (req, res) => {
-    const lang = req.cookies.language || 'en';
+    const lang = req.query.lang || 'en';
+    const supportedLangs = ['en', 'ar'];
+    const selectedLang = supportedLangs.includes(lang) ? lang : 'en';
+    
+    const translations = require(`./locales/${selectedLang}.json`);
     res.json({
-        language: lang,
-        translations: i18n.getCatalog(lang)
+        language: selectedLang,
+        translations
     });
 });
 
 // Language switch endpoint
 app.post('/api/switch-language', (req, res) => {
     const { language } = req.body;
-    if (['en', 'juba-ar'].includes(language)) {
-        res.cookie('language', language, { 
+    if (['en', 'ar'].includes(language)) {
+        res.cookie('lang', language, { 
             maxAge: 30 * 24 * 60 * 60 * 1000,
-            httpOnly: true 
+            httpOnly: false 
         });
         res.json({ success: true, language });
     } else {
@@ -323,11 +303,6 @@ app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate
   });
 });
 
-app.use(i18nMiddleware);
 
-// i18n and language switching middleware are now implemented in your app.js.
-// This means:
-// - The backend serves all API responses in the language chosen by the user (English or Juba Arabic) if your translation files and backend logic support it.
-// - The `/api/translations` endpoint provides all static UI translations for the frontend.
 
 module.exports = app;
