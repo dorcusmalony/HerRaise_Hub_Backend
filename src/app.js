@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
 
 const authRoutes = require('./routes/authRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
@@ -86,6 +87,27 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(cookieParser());
+
+// Session middleware for AdminJS
+app.use(session({
+  secret: process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    httpOnly: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// AdminJS routes
+try {
+  const { adminRouter } = require('./config/adminjs');
+  app.use('/admin', adminRouter);
+  console.log('✅ AdminJS mounted at /admin');
+} catch (error) {
+  console.warn('⚠️ AdminJS not available:', error.message);
+}
 
 // Add i18n middleware
 app.use(i18nMiddleware);
