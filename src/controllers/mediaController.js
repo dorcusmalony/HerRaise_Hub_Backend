@@ -89,4 +89,8 @@ exports.deleteMedia = async (req, res) => {
   }
 };
 
-module.exports = { upload };
+module.exports = { 
+  upload,
+  uploadMedia: exports.uploadMedia,
+  deleteMedia: exports.deleteMedia
+};
