@@ -1,12 +1,5 @@
 const db = require('../config/database');
 const { Op } = require('sequelize');
-const {
-  getOpportunities,
-  trackApplicationClick,
-  toggleBookmark,
-  getBookmarkedOpportunities,
-  getOpportunityStats
-} = require('../services/opportunityBoardService');
 const { addCountdownToOpportunities, getUrgentOpportunities } = require('../services/countdownService');
 
 // Get all opportunities with filters
@@ -249,10 +242,10 @@ exports.getUrgentOpportunities = async (req, res) => {
 };
 
 module.exports = {
-  getOpportunities,
-  trackApplicationClick,
-  toggleBookmark,
-  getBookmarkedOpportunities,
-  getOpportunityStats,
-  getUrgentOpportunities
+  getOpportunities: exports.getOpportunities,
+  trackApplicationClick: exports.trackApplicationClick,
+  toggleBookmark: exports.toggleBookmark,
+  getBookmarkedOpportunities: exports.getBookmarkedOpportunities,
+  getOpportunityStats: exports.getOpportunityStats,
+  getUrgentOpportunities: exports.getUrgentOpportunities
 };
