@@ -1,5 +1,4 @@
 const db = require('../config/database');
-const { Op } = require('sequelize');
 
 // Track application
 const trackApplication = async (userId, opportunityId, status, notes, appliedDate) => {
