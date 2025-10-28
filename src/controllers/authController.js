@@ -59,7 +59,7 @@ function formatUserForResponse(userInstance) {
   return formatted;
 }
 
-const { sendPasswordResetEmail } = require('../services/emailService');
+const { sendPasswordResetEmail, sendWelcomeEmail } = require('../services/emailService');
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -178,6 +178,15 @@ exports.register = async (req, res) => {
     }
 
     const token = generateToken(user.id);
+
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(user.email, user.name);
+      console.log('Welcome email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError.message);
+      // Don't fail registration if email fails
+    }
 
     res.status(201).json({
       success: true,
