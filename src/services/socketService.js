@@ -15,7 +15,7 @@ function initializeSocket(server) {
   io.on('connection', (socket) => {
     console.log(`🔌 Client connected: ${socket.id}`);
 
-    // User authentication
+    
     socket.on('authenticate', (userId) => {
       if (userId) {
         userSockets.set(userId, socket.id);
