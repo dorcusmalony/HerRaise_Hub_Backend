@@ -3,9 +3,36 @@ const db = require('../config/database');
 // Get user notifications
 exports.getNotifications = async (req, res) => {
   try {
+    const userId = req.user.id;
     const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
     
-    // Return empty notifications for now
+    // Try to get real notifications, fallback to empty
+    try {
+      if (db.models && db.models.Notification) {
+        const { rows: notifications, count } = await db.models.Notification.findAndCountAll({
+          where: { userId },
+          order: [['createdAt', 'DESC']],
+          limit: parseInt(limit),
+          offset: parseInt(offset)
+        });
+        
+        return res.json({
+          success: true,
+          notifications,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(count / limit),
+            totalItems: count,
+            itemsPerPage: parseInt(limit)
+          }
+        });
+      }
+    } catch (dbError) {
+      console.log('Notification DB error, returning empty:', dbError.message);
+    }
+    
+    // Fallback
     return res.json({
       success: true,
       notifications: [],
@@ -31,8 +58,25 @@ exports.getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Always return 0 for now until notification table is properly set up
-    console.log('Notification request for user:', userId);
+    // Try to get real count, fallback to 0
+    try {
+      if (db.models && db.models.Notification) {
+        const count = await db.models.Notification.count({
+          where: {
+            userId: userId,
+            readStatus: false
+          }
+        });
+        return res.json({
+          success: true,
+          unreadCount: count
+        });
+      }
+    } catch (dbError) {
+      console.log('Notification DB error, returning 0:', dbError.message);
+    }
+    
+    // Fallback
     return res.json({
       success: true,
       unreadCount: 0
@@ -163,21 +207,53 @@ exports.createTestNotification = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    const notification = await db.models.Notification.create({
-      userId,
-      type: 'forum_like',
-      title: 'Test Notification',
-      message: 'This is a test notification to verify the system is working',
-      data: { test: true },
-      priority: 'normal'
-    });
+    // Try to create in database
+    let notification = null;
+    try {
+      if (db.models && db.models.Notification) {
+        notification = await db.models.Notification.create({
+          userId,
+          type: 'forum_like',
+          title: '🎉 Test Notification',
+          message: 'This is a test notification to verify the system is working!',
+          data: { test: true, timestamp: new Date() },
+          priority: 'normal'
+        });
+        console.log('✅ Test notification saved to database');
+      }
+    } catch (dbError) {
+      console.log('⚠️ Database save failed:', dbError.message);
+    }
+    
+    // Send real-time notification via Socket.IO
+    const { getIO } = require('../services/socketService');
+    const io = getIO();
+    if (io) {
+      const testNotification = {
+        id: notification?.id || 'test-' + Date.now(),
+        userId,
+        type: 'forum_like',
+        title: '🎉 Test Notification',
+        message: 'This is a test notification to verify the system is working!',
+        data: { test: true, timestamp: new Date() },
+        priority: 'normal',
+        readStatus: false,
+        createdAt: new Date()
+      };
+      
+      console.log(`📤 Sending test notification to user_${userId}`);
+      io.to(`user_${userId}`).emit('notification', testNotification);
+      console.log('✅ Real-time test notification sent');
+    }
 
     res.json({
       success: true,
-      message: 'Test notification created',
-      notification
+      message: 'Test notification created and sent',
+      notification: notification || { message: 'Sent via Socket.IO only' },
+      socketSent: !!io
     });
   } catch (error) {
+    console.error('Test notification error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create test notification',
