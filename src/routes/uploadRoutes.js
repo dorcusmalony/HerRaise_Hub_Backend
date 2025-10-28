@@ -9,7 +9,7 @@ const { protect } = require('../middleware/auth');
 // Single file upload
 router.post('/single', protect, uploadSingle);
 
-// Multiple files upload
+//iles upload
 router.post('/multiple', protect, uploadMultiple);
 
 module.exports = router;
