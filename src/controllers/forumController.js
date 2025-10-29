@@ -107,7 +107,9 @@ exports.getPosts = async (req, res) => {
         likesCount: (postData.likes || []).length,
         commentsCount: (postData.ForumComments || []).length,
         viewsCount: postData.views || 0,
-        viewersCount: (postData.viewers || []).length
+        viewersCount: (postData.viewers || []).length,
+        attachmentsCount: (postData.attachments || []).length,
+        hasAttachments: (postData.attachments || []).length > 0
       };
     });
 
@@ -268,7 +270,9 @@ exports.getPost = async (req, res) => {
       likesCount: (postData.likes || []).length,
       commentsCount: (postData.ForumComments || []).length,
       viewsCount: postData.views,
-      viewersCount: (postData.viewers || []).length
+      viewersCount: (postData.viewers || []).length,
+      attachmentsCount: (postData.attachments || []).length,
+      hasAttachments: (postData.attachments || []).length > 0
     };
 
     res.status(200).json({
