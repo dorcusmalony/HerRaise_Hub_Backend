@@ -23,6 +23,8 @@ const mediaRoutes = require('./routes/mediaRoutes');
 const opportunityBoardRoutes = require('./routes/opportunityBoardRoutes');
 const applicationTrackerRoutes = require('./routes/applicationTrackerRoutes');
 const languageRoutes = require('./routes/languageRoutes');
+const landingRoutes = require('./routes/landingRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const i18nMiddleware = require('./middleware/i18nMiddleware');
 
@@ -167,6 +169,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/opportunity-board', opportunityBoardRoutes);
 app.use('/api/application-tracker', applicationTrackerRoutes);
+app.use('/api/landing', landingRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api', languageRoutes);
 
 
@@ -238,12 +242,30 @@ app.all('/register', (req, res) => {
   });
 });
 
-// Optional root hint preserved (still helpful for direct visits)
+// Root route - redirect to frontend or provide API info
 app.get('/', (req, res) => {
+  // If request comes from browser, redirect to frontend
+  const userAgent = req.get('User-Agent') || '';
+  const isBrowser = /Mozilla|Chrome|Safari|Firefox|Edge/i.test(userAgent);
+  
+  if (isBrowser) {
+    return res.redirect(302, `${FRONTEND_URL}`);
+  }
+  
+  // For API clients, return JSON info
   return res.status(200).json({
     success: true,
-    message: 'This is the API backend. The frontend lives elsewhere.',
-    hint: 'Use POST /api/auth/login or POST /api/auth/register for authentication. Visit your frontend for the UI.',
+    message: 'Welcome to HerRaise Hub API',
+    description: 'Empowering women in South Sudan through technology',
+    endpoints: {
+      landing: 'GET /api/landing - Get landing page data',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login'
+      },
+      frontend: FRONTEND_URL
+    },
+    hint: 'Visit the frontend for the full user experience'
   });
 });
 

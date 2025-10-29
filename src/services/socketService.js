@@ -13,17 +13,37 @@ function initializeSocket(server) {
   });
 
   io.on('connection', (socket) => {
-    console.log(`🔌 Client connected: ${socket.id}`);
+    console.log(` Client connected: ${socket.id}`);
 
     
+    // Auto-authenticate from JWT token in handshake
+    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.id;
+        
+        userSockets.set(userId, socket.id);
+        socket.userId = userId;
+        console.log(`User ${userId} authenticated with socket ${socket.id}`);
+        
+        // Join user's personal room
+        socket.join(`user_${userId}`);
+      } catch (error) {
+        console.log(' Socket authentication failed:', error.message);
+      }
+    }
+    
+    // Manual authentication (backup)
     socket.on('authenticate', (userId) => {
       if (userId) {
         userSockets.set(userId, socket.id);
         socket.userId = userId;
-        console.log(`✅ User ${userId} authenticated with socket ${socket.id}`);
+        console.log(` User ${userId} authenticated with socket ${socket.id}`);
         
         // Join user's personal room
-        socket.join(`user:${userId}`);
+        socket.join(`user_${userId}`);
       }
     });
 
@@ -31,12 +51,12 @@ function initializeSocket(server) {
     socket.on('disconnect', () => {
       if (socket.userId) {
         userSockets.delete(socket.userId);
-        console.log(`❌ User ${socket.userId} disconnected`);
+        console.log(` User ${socket.userId} disconnected`);
       }
     });
   });
 
-  console.log('✅ Socket.IO initialized');
+  console.log(' Socket.IO initialized');
   return io;
 }
 
@@ -47,9 +67,9 @@ function emitToUser(userId, event, data) {
   const socketId = userSockets.get(userId);
   if (socketId) {
     io.to(socketId).emit(event, data);
-    console.log(`📤 Emitted ${event} to user ${userId}`);
+    console.log(` Emitted ${event} to user ${userId}`);
   } else {
-    console.log(`⚠️ User ${userId} not connected`);
+    console.log(` User ${userId} not connected`);
   }
 }
 
