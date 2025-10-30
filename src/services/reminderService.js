@@ -1,61 +1,101 @@
 const cron = require('node-cron');
 const db = require('../config/database');
+const emailService = require('./emailService');
+const NotificationService = require('./notificationService');
 
-// Initialize all cron jobs
-const initializeCronJobs = () => {
-  console.log('Initializing cron jobs...');
-  
-  // Check for scholarship deadlines daily at 9 AM
-  cron.schedule('0 9 * * *', async () => {
+class ReminderService {
+  // Check for reminders daily at 9 AM
+  static startReminderScheduler() {
+    cron.schedule('0 9 * * *', async () => {
+      console.log('🔔 Running daily reminder check...');
+      await this.sendDeadlineReminders();
+    }, {
+      timezone: process.env.TZ || 'Africa/Juba'
+    });
+    
+    console.log('📅 Reminder scheduler started - runs daily at 9 AM');
+  }
+
+  static async sendDeadlineReminders() {
     try {
-      const { Scholarship, ScholarshipApplication, Notification, User } = db.models;
+      const { OpportunityInteraction, Opportunity, User } = db.models;
       
-      if (!Scholarship) return;
+      // Find opportunities with deadlines in 3 days
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
       
-      // Find scholarships with deadlines in next 7 days
-      const upcoming = await Scholarship.findAll({
+      const startOfDay = new Date(threeDaysFromNow);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(threeDaysFromNow);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Get users who want reminders for opportunities due in 3 days
+      const interactions = await OpportunityInteraction.findAll({
         where: {
-          deadline: {
-            [db.Sequelize.Op.between]: [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+          wantsReminder: true,
+          reminderSent: false
+        },
+        include: [
+          {
+            model: Opportunity,
+            where: {
+              applicationDeadline: {
+                [db.sequelize.Sequelize.Op.between]: [startOfDay, endOfDay]
+              }
+            }
           },
-          isActive: true
-        }
+          {
+            model: User,
+            attributes: ['id', 'name', 'email']
+          }
+        ]
       });
 
-      for (const scholarship of upcoming) {
-        // Get users who haven't applied
-        const appliedUsers = await ScholarshipApplication.findAll({
-          where: { scholarshipId: scholarship.id },
-          attributes: ['userId']
-        });
-        
-        const appliedUserIds = appliedUsers.map(app => app.userId);
-        
-        const users = await User.findAll({
-          where: {
-            id: { [db.Sequelize.Op.notIn]: appliedUserIds }
-          },
-          attributes: ['id']
-        });
+      console.log(`📬 Found ${interactions.length} reminders to send`);
 
-        // Create reminder notifications
-        const notifications = users.map(user => ({
-          userId: user.id,
-          type: 'deadline_reminder',
-          title: 'Deadline Approaching!',
-          message: `${scholarship.title} deadline is in ${Math.ceil((scholarship.deadline - new Date()) / (1000 * 60 * 60 * 24))} days`,
-          relatedId: scholarship.id,
-          link: `/opportunities/${scholarship.id}`
-        }));
+      for (const interaction of interactions) {
+        try {
+          const user = interaction.User;
+          const opportunity = interaction.Opportunity;
+          
+          // Send email reminder
+          await emailService.sendDeadlineReminder(user, opportunity);
+          
+          // Send notification
+          await NotificationService.createNotification(
+            user.id,
+            'deadline_reminder',
+            '⏰ Application Deadline Reminder',
+            `Don't forget! ${opportunity.title} deadline is in 3 days (${opportunity.applicationDeadline.toDateString()})`,
+            { 
+              opportunityId: opportunity.id, 
+              url: '/opportunities',
+              deadline: opportunity.applicationDeadline 
+            },
+            'high'
+          );
 
-        if (notifications.length > 0) {
-          await Notification.bulkCreate(notifications);
+          // Mark reminder as sent
+          interaction.reminderSent = true;
+          interaction.reminderSentAt = new Date();
+          await interaction.save();
+
+          console.log(`✅ Reminder sent to ${user.name} for ${opportunity.title}`);
+        } catch (error) {
+          console.error('❌ Failed to send reminder:', error.message);
         }
       }
     } catch (error) {
-      console.error('Scholarship reminder service error:', error);
+      console.error('❌ Error in reminder service:', error);
     }
-  });
-};
+  }
 
-module.exports = { initializeCronJobs };
+  // Manual trigger for testing
+  static async triggerReminders() {
+    console.log('🔔 Manually triggering reminders...');
+    await this.sendDeadlineReminders();
+  }
+}
+
+module.exports = ReminderService;

@@ -135,8 +135,64 @@ const sendWelcomeEmail = async (email, userName) => {
   });
 };
 
+// Deadline reminder email template
+const sendDeadlineReminder = async (user, opportunity) => {
+  const opportunityUrl = `${process.env.FRONTEND_URL}/opportunities/${opportunity.id}`;
+  const deadlineDate = new Date(opportunity.applicationDeadline).toLocaleDateString();
+  
+  const html = `
+    <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+      <div style="text-align: center; padding: 20px; background-color: #ff6b35; color: white;">
+        <h1>⏰ Deadline Reminder!</h1>
+      </div>
+      <div style="padding: 30px;">
+        <h2 style="color: #333;">Hi ${user.name}! 👋</h2>
+        <p>This is a friendly reminder about an opportunity you showed interest in:</p>
+        
+        <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff6b35;">
+          <h3 style="color: #ff6b35; margin-top: 0;">${opportunity.title}</h3>
+          <p><strong>Type:</strong> ${opportunity.type}</p>
+          <p><strong>Organization:</strong> ${opportunity.organization || 'Not specified'}</p>
+          <p style="color: #d63384; font-weight: bold;">⚠️ <strong>Deadline:</strong> ${deadlineDate} (3 days left!)</p>
+        </div>
+        
+        <p>Don't miss out on this amazing opportunity! Make sure to submit your application before the deadline.</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${opportunityUrl}" 
+             style="background-color: #ff6b35; color: white; padding: 15px 30px; 
+                    text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            View Opportunity Details 🔗
+          </a>
+        </div>
+        
+        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #2d5a2d;"><strong>💡 Quick Tip:</strong> Set aside time today to complete your application. Good luck!</p>
+        </div>
+        
+        <p>We're rooting for you! 💪</p>
+        
+        <p>Best regards,<br>
+        <strong>The HerRaise Hub Team</strong></p>
+      </div>
+      <hr style="margin: 30px 0;">
+      <div style="text-align: center; color: #666; font-size: 12px;">
+        <p>HerRaise Hub - Empowering Women in South Sudan</p>
+        <p>You received this reminder because you requested to be notified about this opportunity.</p>
+      </div>
+    </div>
+  `;
+
+  return await sendEmail({
+    to: user.email,
+    subject: `⏰ Reminder: ${opportunity.title} deadline in 3 days!`,
+    html
+  });
+};
+
 module.exports = {
   sendEmail,
   sendPasswordResetEmail,
-  sendWelcomeEmail
+  sendWelcomeEmail,
+  sendDeadlineReminder
 };
