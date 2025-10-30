@@ -6,6 +6,7 @@ const seedBadges = require('./src/utils/seedBadges');
 const { initializeSocket } = require('./src/services/socketService');
 const { initializeCronJobs } = require('./src/services/reminderService');
 const { initializeReminderCrons } = require('./src/services/applicationReminderService');
+const ReminderService = require('./src/services/reminderService');
 
 // Use PORT from environment (Render sets this) with 5000 fallback
 const PORT = process.env.PORT || 5000;
@@ -34,10 +35,17 @@ async function start() {
     initializeSocket(server);
     
     // Initialize Cron Jobs for reminders
-    initializeCronJobs();
+    if (typeof initializeCronJobs === 'function') {
+      initializeCronJobs();
+    }
     
     // Initialize Application Reminder Crons
-    initializeReminderCrons();
+    if (typeof initializeReminderCrons === 'function') {
+      initializeReminderCrons();
+    }
+    
+    // Start deadline reminder scheduler
+    ReminderService.startReminderScheduler();
 
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {

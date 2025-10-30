@@ -25,6 +25,8 @@ const applicationTrackerRoutes = require('./routes/applicationTrackerRoutes');
 const languageRoutes = require('./routes/languageRoutes');
 const landingRoutes = require('./routes/landingRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const opportunityTrackingRoutes = require('./routes/opportunityTrackingRoutes');
+const pushNotificationRoutes = require('./routes/pushNotificationRoutes');
 
 const i18nMiddleware = require('./middleware/i18nMiddleware');
 
@@ -171,6 +173,8 @@ app.use('/api/opportunity-board', opportunityBoardRoutes);
 app.use('/api/application-tracker', applicationTrackerRoutes);
 app.use('/api/landing', landingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/opportunity-tracking', opportunityTrackingRoutes);
+app.use('/api/push-notifications', pushNotificationRoutes);
 app.use('/api', languageRoutes);
 
 
