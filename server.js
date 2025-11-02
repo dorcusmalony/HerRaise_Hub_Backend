@@ -25,6 +25,9 @@ async function start() {
     // Now require the app (routes/controllers can safely access db.models)
     const app = require('./src/app');
 
+    // AdminJS temporarily disabled due to configuration issues
+    console.log('⚠️ AdminJS disabled - use API endpoints for admin tasks');
+
     const server = app.listen(PORT, () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
       console.log(` API URL: http://localhost:${PORT}/api`);

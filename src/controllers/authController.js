@@ -61,6 +61,55 @@ function formatUserForResponse(userInstance) {
 
 const { sendPasswordResetEmail, sendWelcomeEmail } = require('../services/emailService');
 
+// Password validation function
+function validatePassword(password) {
+  const errors = [];
+  
+  // Minimum length
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
+  }
+  
+  // Maximum length
+  if (password.length > 128) {
+    errors.push('Password must be less than 128 characters');
+  }
+  
+  // Must contain at least one uppercase letter
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  
+  // Must contain at least one lowercase letter
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  
+  // Must contain at least one number
+  if (!/\d/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  
+  // Must contain at least one special character
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+    errors.push('Password must contain at least one special character (!@#$%^&*)');
+  }
+  
+  // No common passwords
+  const commonPasswords = [
+    'password', '123456', '123456789', 'qwerty', 'abc123', 
+    'password123', 'admin', 'letmein', 'welcome', 'monkey'
+  ];
+  if (commonPasswords.includes(password.toLowerCase())) {
+    errors.push('Password is too common. Please choose a more secure password');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
@@ -94,6 +143,16 @@ exports.register = async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         message: 'Name, email, and password are required fields' 
+      });
+    }
+
+    // Strong password validation
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password requirements not met',
+        errors: passwordValidation.errors
       });
     }
 
@@ -382,6 +441,16 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    // Validate new password
+    const passwordValidation = validatePassword(req.body.password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password requirements not met',
+        errors: passwordValidation.errors
+      });
+    }
+
     // Set new password
     user.password = req.body.password;
     user.resetPasswordToken = null;
@@ -422,6 +491,16 @@ exports.changePassword = async (req, res) => {
       });
     }
 
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password requirements not met',
+        errors: passwordValidation.errors
+      });
+    }
+
     // Set new password
     user.password = newPassword;
     await user.save();
@@ -437,6 +516,60 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
+
+// @desc    Validate password strength
+// @route   POST /api/auth/validate-password
+// @access  Public
+exports.validatePassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required'
+      });
+    }
+    
+    const validation = validatePassword(password);
+    
+    res.status(200).json({
+      success: true,
+      isValid: validation.isValid,
+      errors: validation.errors,
+      strength: getPasswordStrength(password)
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Helper function to calculate password strength
+function getPasswordStrength(password) {
+  let score = 0;
+  
+  // Length bonus
+  if (password.length >= 8) score += 1;
+  if (password.length >= 12) score += 1;
+  if (password.length >= 16) score += 1;
+  
+  // Character variety
+  if (/[a-z]/.test(password)) score += 1;
+  if (/[A-Z]/.test(password)) score += 1;
+  if (/\d/.test(password)) score += 1;
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) score += 1;
+  
+  // Complexity bonus
+  if (/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/.test(password)) score += 1;
+  
+  if (score <= 3) return 'weak';
+  if (score <= 5) return 'medium';
+  if (score <= 7) return 'strong';
+  return 'very-strong';
+}
 
 // @desc    Logout user
 // @route   POST /api/auth/logout
