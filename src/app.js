@@ -36,6 +36,8 @@ const app = express();
 app.use(helmet());
 app.use(morgan('dev'));
 
+// AdminJS temporarily disabled
+
 // ------------------ CORS CONFIG ------------------
 const DEFAULT_FRONTENDS = [
   'https://her-raise-hub.vercel.app',
@@ -55,6 +57,9 @@ const corsOptions = {
   origin: (origin, callback) => {
     // allow requests with no origin (e.g., curl, mobile apps, server-to-server)
     if (!origin) return callback(null, true);
+
+    // allow localhost for AdminJS
+    if (origin && origin.includes('localhost')) return callback(null, true);
 
     // allow exact-origin matches
     if (allowedOrigins.includes(origin)) return callback(null, true);
@@ -104,14 +109,7 @@ app.use(session({
   }
 }));
 
-// AdminJS routes
-try {
-  const { adminRouter } = require('./config/adminjs');
-  app.use('/admin', adminRouter);
-  console.log('✅ AdminJS mounted at /admin');
-} catch (error) {
-  console.warn('⚠️ AdminJS not available:', error.message);
-}
+// AdminJS already mounted above before CORS
 
 // Add i18n middleware
 app.use(i18nMiddleware);
