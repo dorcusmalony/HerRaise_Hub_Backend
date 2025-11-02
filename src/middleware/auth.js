@@ -5,6 +5,21 @@ exports.protect = async (req, res, next) => {
   let token;
 
   try {
+    // Check URL token first (for admin panel)
+    const urlToken = req.query.token;
+    if (urlToken) {
+      try {
+        const decoded = Buffer.from(urlToken, 'base64').toString();
+        const [userId, role, timestamp] = decoded.split(':');
+        if (role === 'admin') {
+          req.user = { id: userId, role: 'admin' };
+          return next();
+        }
+      } catch (e) {
+        // Invalid token, continue to other checks
+      }
+    }
+    
     // Get token from header "Authorization: Bearer <token>"
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];

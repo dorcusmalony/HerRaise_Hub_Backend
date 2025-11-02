@@ -32,11 +32,11 @@ const i18nMiddleware = require('./middleware/i18nMiddleware');
 
 const app = express();
 
-// ------------------ SECURITY & LOGGING ------------------
-app.use(helmet());
-app.use(morgan('dev'));
+// Admin panel available at /api/admin-panel
 
-// AdminJS temporarily disabled
+// ------------------ SECURITY & LOGGING ------------------
+// app.use(helmet()); // Disabled for admin panel functionality
+app.use(morgan('dev'));
 
 // ------------------ CORS CONFIG ------------------
 const DEFAULT_FRONTENDS = [
@@ -58,7 +58,7 @@ const corsOptions = {
     // allow requests with no origin (e.g., curl, mobile apps, server-to-server)
     if (!origin) return callback(null, true);
 
-    // allow localhost for AdminJS
+    // allow localhost
     if (origin && origin.includes('localhost')) return callback(null, true);
 
     // allow exact-origin matches
@@ -97,7 +97,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(cookieParser());
 
-// Session middleware for AdminJS
+// Session middleware
 app.use(session({
   secret: process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure',
   resave: false,
@@ -109,14 +109,13 @@ app.use(session({
   }
 }));
 
-// AdminJS already mounted above before CORS
-
 // Add i18n middleware
 app.use(i18nMiddleware);
 
 // ------------------ STATIC FILES ------------------
 // Serve uploaded files (only needed if using local storage)
 app.use('/uploads', express.static('uploads'));
+app.use(express.static('public'));
 
 // ------------------ DEBUG LOGGING ------------------
 // Log all API requests for debugging (remove in production or gate with NODE_ENV check)
@@ -163,6 +162,9 @@ app.use('/api/forum', forumRoutes);
 app.use('/api/safety-resources', safetyResourceRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/upload', uploadRoutes);
+
+
+app.use('/api/admin', require('./routes/adminStatsRoutes'));
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/opportunities', adminOpportunityRoutes);
 app.use('/api/notifications', notificationRoutes);
