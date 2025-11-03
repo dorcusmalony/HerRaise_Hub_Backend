@@ -3,44 +3,10 @@ const { models } = require('../config/database');
 const adminAuth = require('../middleware/adminAuth');
 const router = express.Router();
 
-// Public admin login page
-router.get('/login', (req, res) => {
-  res.send(`
-    <h1>Admin Login</h1>
-    <p><a href="/api/admin/quick-login">Click here to login as admin</a></p>
-    <form method="POST" action="/api/admin/auth/login">
-      <p>Email: <input type="email" name="email" value="herraisehub@gmail.com" required></p>
-      <p>Password: <input type="password" name="password" value="mosesalier@2023" required></p>
-      <p><button type="submit">Login</button></p>
-    </form>
-  `);
-});
-
-// Quick login route
-router.get('/quick-login', async (req, res) => {
-  try {
-    const { models } = require('../config/database');
-    const bcrypt = require('bcryptjs');
-    const jwt = require('jsonwebtoken');
-    
-    const user = await models.User.findOne({ where: { email: 'herraise337@gmail.com' } });
-    
-    if (!user || user.role !== 'admin') {
-      return res.send('<h1>Admin user not found. Creating...</h1>');
-    }
-    
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('adminToken', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
-    res.redirect('/api/admin');
-  } catch (error) {
-    res.send('<h1>Error: ' + error.message + '</h1>');
-  }
-});
-
 // @desc    Admin dashboard HTML
 // @route   GET /api/admin
 // @access  Private (Admin only)
-router.get('/', (req, res) => {
+router.get('/', adminAuth, (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -67,7 +33,7 @@ router.get('/', (req, res) => {
     </head>
     <body>
       <div class="header">
-        <h1> HerRaise Hub Admin Dashboard</h1>
+        <h1>HerRaise Hub Admin Dashboard</h1>
       </div>
       <div class="container">
         <div class="stats" id="stats">
@@ -89,104 +55,149 @@ router.get('/', (req, res) => {
           </div>
         </div>
         
-        <!-- Navigation Tabs -->
         <div class="tabs">
-          <div class="tab active" onclick="showTab('overview', this)"> Overview</div>
-          <div class="tab" onclick="showTab('users', this)"> Users & Mentors</div>
-          <div class="tab" onclick="showTab('opportunities', this)"> Opportunities</div>
-          <div class="tab" onclick="showTab('resources', this)"> Resources</div>
-          <div class="tab" onclick="showTab('reports', this)"> Reports & Forum</div>
+          <div class="tab active" onclick="showTab('overview', this)">Overview</div>
+          <div class="tab" onclick="showTab('users', this)">Users & Mentors</div>
+          <div class="tab" onclick="showTab('opportunities', this)">Opportunities</div>
+          <div class="tab" onclick="showTab('resources', this)">Resources</div>
+          <div class="tab" onclick="showTab('reports', this)">Reports & Forum</div>
           <button onclick="logout()" class="btn" style="background: #dc3545; margin-left: auto;">Logout</button>
         </div>
         
-        <!-- Overview Tab -->
         <div id="overview" class="tab-content active">
           <div class="section">
-            <h3> Quick Actions</h3>
-            <button onclick="showModal()" class="btn">+ Add Opportunity</button>
+            <h3>Quick Actions</h3>
+            <button onclick="showOpportunityModal()" class="btn">+ Add Opportunity</button>
             <button onclick="showTab('users', document.querySelector('.tab:nth-child(2)'))" class="btn">Manage Users</button>
             <button onclick="showTab('reports', document.querySelector('.tab:nth-child(5)'))" class="btn">View Reports</button>
           </div>
         </div>
         
-        <!-- Users & Mentors Tab -->
         <div id="users" class="tab-content">
           <div class="section">
-            <h3> Users & Mentors Management</h3>
+            <h3>Users & Mentors Management</h3>
             <div id="usersContent">Loading users...</div>
           </div>
         </div>
         
-        <!-- Opportunities Tab -->
         <div id="opportunities" class="tab-content">
           <div class="section">
-            <h3> Opportunities Management</h3>
+            <h3>Opportunities Management</h3>
             <div id="opportunitiesContent">Loading opportunities...</div>
           </div>
         </div>
         
-        <!-- Resources Tab -->
         <div id="resources" class="tab-content">
           <div class="section">
-            <h3> Resources Management</h3>
+            <h3>Resources Management</h3>
             <div id="resourcesContent">Loading resources...</div>
           </div>
         </div>
         
-        <!-- Reports & Forum Tab -->
         <div id="reports" class="tab-content">
           <div class="section">
-            <h3> Reports & Forum Management</h3>
+            <h3>Reports & Forum Management</h3>
             <div id="reportsContent">Loading reports...</div>
+          </div>
+        </div>
+        
+        <div id="opportunityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 500px; max-height: 80vh; overflow-y: auto;">
+            <h3 id="modalTitle" style="margin-top: 0; color: #6A1B9A;">Add New Opportunity</h3>
+            
+            <form onsubmit="saveOpportunity(event)">
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Title:</label>
+                <input type="text" id="oppTitle" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Type:</label>
+                <select id="oppType" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                  <option value="">Select Type</option>
+                  <option value="scholarship">Scholarship</option>
+                  <option value="internship">Internship</option>
+                  <option value="conference">Conference</option>
+                  <option value="competition">Competition</option>
+                  <option value="job">Job</option>
+                  <option value="grant">Grant</option>
+                </select>
+              </div>
+              
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Description:</label>
+                <textarea id="oppDescription" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; height: 100px; box-sizing: border-box; resize: vertical;"></textarea>
+              </div>
+              
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Deadline:</label>
+                <input type="date" id="oppDeadline" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Application Link:</label>
+                <input type="url" id="oppLink" required placeholder="https://example.com/apply" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Organization:</label>
+                <input type="text" id="oppOrganization" placeholder="Company/Organization name" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              
+              <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Location:</label>
+                <input type="text" id="oppLocation" placeholder="City, Country or Remote" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              
+              <div style="text-align: right;">
+                <button type="button" onclick="hideOpportunityModal()" style="background: #666; color: white; padding: 10px 20px; border: none; border-radius: 4px; margin-right: 10px; cursor: pointer;">Cancel</button>
+                <button type="submit" id="saveBtn" style="background: #6A1B9A; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
       
       <script>
-        console.log(' Admin dashboard loaded');
-        
-        // Tab switching function
         function showTab(tabName, clickedTab) {
-          console.log('Switching to tab:', tabName);
-          
-          // Hide all content
           document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-          
-          // Remove active from tabs
           document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
           
-          // Show selected content
           const tabElement = document.getElementById(tabName);
           if (tabElement) {
             tabElement.classList.add('active');
-            console.log('✅ Activated tab content:', tabName);
           }
           
-          // Activate clicked tab
           if (clickedTab) {
             clickedTab.classList.add('active');
-            console.log('✅ Activated tab button:', tabName);
           }
           
-          // Load data for the selected tab
           if (tabName !== 'overview') {
             loadTabContent(tabName);
           }
         }
         
-        // Helper function to make authenticated requests
         function makeAuthRequest(url, options = {}) {
           const headers = options.headers || {};
-          const token = localStorage.getItem('adminToken');
+          headers['Content-Type'] = headers['Content-Type'] || 'application/json';
           
-          if (token) {
-            headers['Authorization'] = 'Bearer ' + token;
+          // Get token from URL if available
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlToken = urlParams.get('token');
+          
+          if (urlToken) {
+            // Add token to URL if we have it
+            const separator = url.includes('?') ? '&' : '?';
+            url = url + separator + 'token=' + urlToken;
           }
           
-          return fetch(url, { ...options, headers });
+          return fetch(url, { 
+            ...options, 
+            headers,
+            credentials: 'include'
+          });
         }
         
-        // Load stats on page load
         loadStats();
         
         async function loadStats() {
@@ -221,8 +232,6 @@ router.get('/', (req, res) => {
         }
         
         async function loadTabContent(tabName) {
-          console.log('Loading content for tab:', tabName);
-          
           switch(tabName) {
             case 'users':
               document.getElementById('usersContent').innerHTML = 'Loading users...';
@@ -235,7 +244,7 @@ router.get('/', (req, res) => {
                   
                   document.getElementById('usersContent').innerHTML = \`
                     <div style="margin-bottom: 20px;">
-                      <h4> User Overview</h4>
+                      <h4>User Overview</h4>
                       <p>Total Users: <strong>\${data.users.length}</strong> | Mentors: <strong>\${mentors.length}</strong></p>
                     </div>
                     
@@ -252,11 +261,10 @@ router.get('/', (req, res) => {
                     \`).join('')}
                   \`;
                 } else {
-                  document.getElementById('usersContent').innerHTML = '<p>❌ No users found</p>';
+                  document.getElementById('usersContent').innerHTML = '<p>No users found</p>';
                 }
               } catch (error) {
-                console.error('Error loading users:', error);
-                document.getElementById('usersContent').innerHTML = '❌ Error loading users: ' + error.message;
+                document.getElementById('usersContent').innerHTML = 'Error loading users: ' + error.message;
               }
               break;
               
@@ -269,24 +277,38 @@ router.get('/', (req, res) => {
                 if (data.success && data.opportunities) {
                   document.getElementById('opportunitiesContent').innerHTML = \`
                     <div style="margin-bottom: 20px;">
-                      <h4>Total: \${data.opportunities.length} opportunities</h4>
+                      <button onclick="showOpportunityModal()" class="btn">+ Add New Opportunity</button>
+                      <span style="margin-left: 15px; color: #666;">Total: \${data.opportunities.length} opportunities</span>
                     </div>
                     
                     \${data.opportunities.map(opp => \`
                       <div class="user-card" style="border-left-color: #007bff;">
-                        <strong>\${opp.title}</strong> 
-                        <span style="background: #6A1B9A; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">\${opp.type}</span><br>
-                        <span style="color: #666;">\${(opp.description || '').substring(0, 100)}...</span><br>
-                        <span style="color: #888; font-size: 12px;">Deadline: \${new Date(opp.applicationDeadline || opp.deadline).toLocaleDateString()}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                          <div style="flex: 1; margin-right: 15px;">
+                            <strong>\${opp.title}</strong> 
+                            <span style="background: #6A1B9A; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">\${opp.type}</span><br>
+                            <span style="color: #666;">\${(opp.description || '').substring(0, 100)}...</span><br>
+                            <span style="color: #888; font-size: 12px;">Deadline: \${new Date(opp.applicationDeadline || opp.deadline).toLocaleDateString()}</span><br>
+                            <span style="color: #888; font-size: 12px;">Organization: \${opp.organization || 'N/A'} | Location: \${opp.location || 'N/A'}</span>
+                          </div>
+                          <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <button onclick="editOpportunity('\${opp.id}')" style="background: #ffc107; color: #000; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Edit</button>
+                            <button onclick="deleteOpportunity('\${opp.id}')" style="background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Delete</button>
+                          </div>
+                        </div>
                       </div>
                     \`).join('')}
                   \`;
                 } else {
-                  document.getElementById('opportunitiesContent').innerHTML = '<p>No opportunities found</p>';
+                  document.getElementById('opportunitiesContent').innerHTML = \`
+                    <div style="text-align: center; padding: 40px;">
+                      <button onclick="showOpportunityModal()" class="btn">+ Add New Opportunity</button>
+                      <p style="color: #666; margin-top: 20px;">No opportunities found. Create your first opportunity!</p>
+                    </div>
+                  \`;
                 }
               } catch (error) {
-                console.error('Error loading opportunities:', error);
-                document.getElementById('opportunitiesContent').innerHTML = '❌ Error: ' + error.message;
+                document.getElementById('opportunitiesContent').innerHTML = 'Error: ' + error.message;
               }
               break;
               
@@ -312,46 +334,203 @@ router.get('/', (req, res) => {
                   document.getElementById('resourcesContent').innerHTML = '<p>No resources found</p>';
                 }
               } catch (error) {
-                document.getElementById('resourcesContent').innerHTML = '❌ Error: ' + error.message;
+                document.getElementById('resourcesContent').innerHTML = 'Error: ' + error.message;
               }
               break;
               
             case 'reports':
               document.getElementById('reportsContent').innerHTML = 'Loading reports...';
               try {
-                const response = await makeAuthRequest('/api/reports');
+                const response = await makeAuthRequest('/api/admin/reports');
                 const data = await response.json();
                 
                 const reports = data.success ? data.reports || [] : [];
                 
                 document.getElementById('reportsContent').innerHTML = \`
-                  <h4> User Reports (\${reports.length})</h4>
+                  <h4>User Reports (\${reports.length})</h4>
                   \${reports.length > 0 ? reports.map(report => \`
                     <div class="user-card" style="border-left-color: #dc3545;">
-                      <strong>\${report.type || 'General Report'}</strong>
-                      <span style="background: \${report.status === 'resolved' ? '#28a745' : '#dc3545'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">\${report.status || 'pending'}</span><br>
-                      <span style="color: #666;">\${(report.description || '').substring(0, 100)}...</span><br>
-                      <span style="color: #888; font-size: 12px;">Reported: \${new Date(report.createdAt).toLocaleDateString()}</span>
+                      <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                          <strong>\${report.name || 'Anonymous'}</strong> 
+                          <span style="background: \${report.status === 'resolved' ? '#28a745' : '#dc3545'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">\${report.status || 'pending'}</span><br>
+                          <span style="color: #666;">Email: \${report.email || 'Not provided'}</span><br>
+                          <span style="color: #666;">Subject: \${report.subject || 'No subject'}</span><br>
+                          <span style="color: #666;">Message: \${(report.message || '').substring(0, 150)}...</span><br>
+                          <span style="color: #888; font-size: 12px;">Submitted: \${new Date(report.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                          <button onclick="resolveReport('\${report.id}')" style="background: #28a745; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Mark Resolved</button>
+                          <button onclick="deleteReport('\${report.id}')" style="background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Delete</button>
+                        </div>
+                      </div>
                     </div>
                   \`).join('') : '<p>No reports found</p>'}
                 \`;
               } catch (error) {
-                document.getElementById('reportsContent').innerHTML = '❌ Error: ' + error.message;
+                document.getElementById('reportsContent').innerHTML = 'Error: ' + error.message;
               }
               break;
           }
         }
         
-
-        
         function logout() {
-          localStorage.removeItem('adminToken');
+          document.cookie = 'adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
           window.location.href = '/api/admin/login';
         }
         
-        function showModal() {
-          alert('Modal functionality coming soon!');
+        let editingOpportunityId = null;
+        
+        function showOpportunityModal() {
+          editingOpportunityId = null;
+          document.getElementById('modalTitle').textContent = 'Add New Opportunity';
+          document.getElementById('saveBtn').textContent = 'Save';
+          document.querySelector('#opportunityModal form').reset();
+          document.getElementById('opportunityModal').style.display = 'block';
         }
+        
+        function hideOpportunityModal() {
+          document.getElementById('opportunityModal').style.display = 'none';
+          document.querySelector('#opportunityModal form').reset();
+          editingOpportunityId = null;
+        }
+        
+        async function editOpportunity(id) {
+          try {
+            const response = await makeAuthRequest(\`/api/admin/opportunities/\${id}\`);
+            const data = await response.json();
+            
+            if (data.success && data.opportunity) {
+              const opp = data.opportunity;
+              editingOpportunityId = id;
+              
+              document.getElementById('oppTitle').value = opp.title;
+              document.getElementById('oppType').value = opp.type;
+              document.getElementById('oppDescription').value = opp.description;
+              document.getElementById('oppDeadline').value = opp.applicationDeadline ? opp.applicationDeadline.split('T')[0] : '';
+              document.getElementById('oppLink').value = opp.applicationLink || '';
+              document.getElementById('oppOrganization').value = opp.organization || '';
+              document.getElementById('oppLocation').value = opp.location || '';
+              
+              document.getElementById('modalTitle').textContent = 'Edit Opportunity';
+              document.getElementById('saveBtn').textContent = 'Update';
+              document.getElementById('opportunityModal').style.display = 'block';
+            }
+          } catch (error) {
+            alert('Error loading opportunity: ' + error.message);
+          }
+        }
+        
+        async function saveOpportunity(event) {
+          event.preventDefault();
+          
+          const formData = {
+            title: document.getElementById('oppTitle').value,
+            type: document.getElementById('oppType').value,
+            description: document.getElementById('oppDescription').value,
+            applicationDeadline: document.getElementById('oppDeadline').value,
+            applicationLink: document.getElementById('oppLink').value,
+            organization: document.getElementById('oppOrganization').value,
+            location: document.getElementById('oppLocation').value,
+            isActive: true
+          };
+          
+          try {
+            let response;
+            if (editingOpportunityId) {
+              response = await makeAuthRequest(\`/api/admin/opportunities/\${editingOpportunityId}\`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+              });
+            } else {
+              response = await makeAuthRequest('/api/admin/opportunities', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+              });
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              alert(editingOpportunityId ? 'Opportunity updated!' : 'Opportunity created!');
+              hideOpportunityModal();
+              loadTabContent('opportunities');
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Failed to save: ' + error.message);
+          }
+        }
+        
+        async function deleteOpportunity(id) {
+          if (!confirm('Delete this opportunity? This cannot be undone.')) return;
+          
+          try {
+            const response = await makeAuthRequest(\`/api/admin/opportunities/\${id}\`, {
+              method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              alert('Opportunity deleted!');
+              loadTabContent('opportunities');
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Failed to delete: ' + error.message);
+          }
+        }
+        
+        async function resolveReport(id) {
+          try {
+            const response = await makeAuthRequest(\`/api/admin/reports/\${id}\`, {
+              method: 'PUT',
+              body: JSON.stringify({ status: 'resolved' })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              alert('Report marked as resolved!');
+              loadTabContent('reports');
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Failed to resolve: ' + error.message);
+          }
+        }
+        
+        async function deleteReport(id) {
+          if (!confirm('Delete this report? This cannot be undone.')) return;
+          
+          try {
+            const response = await makeAuthRequest(\`/api/admin/reports/\${id}\`, {
+              method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              alert('Report deleted!');
+              loadTabContent('reports');
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Failed to delete: ' + error.message);
+          }
+        }
+        
+        document.addEventListener('click', function(event) {
+          const modal = document.getElementById('opportunityModal');
+          if (event.target === modal) {
+            hideOpportunityModal();
+          }
+        });
       </script>
     </body>
     </html>
@@ -361,20 +540,18 @@ router.get('/', (req, res) => {
 // @desc    Get admin dashboard stats
 // @route   GET /api/admin/stats
 // @access  Private (Admin only)
-router.get('/stats', async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
   try {
     const [
       totalUsers,
       totalMentors,
       totalOpportunities,
-      totalResources,
-      activeApplications
+      totalResources
     ] = await Promise.all([
       models.User.count(),
       models.User.count({ where: { role: 'mentor' } }),
       models.Opportunity.count({ where: { isActive: true } }),
-      models.Resource.count(),
-      models.Application ? models.Application.count({ where: { status: ['submitted', 'under_review'] } }) : 0
+      models.Resource.count()
     ]);
 
     res.json({
@@ -383,21 +560,14 @@ router.get('/stats', async (req, res) => {
         totalUsers,
         totalMentors,
         totalOpportunities,
-        totalResources,
-        activeApplications
+        totalResources
       }
     });
   } catch (error) {
     console.error('Admin stats error:', error);
-    res.json({
-      success: true,
-      stats: {
-        totalUsers: 35,
-        totalMentors: 8,
-        totalOpportunities: 12,
-        totalResources: 25,
-        activeApplications: 18
-      }
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching stats'
     });
   }
 });
@@ -405,7 +575,7 @@ router.get('/stats', async (req, res) => {
 // @desc    Get all users for admin
 // @route   GET /api/admin/users
 // @access  Private (Admin only)
-router.get('/users', async (req, res) => {
+router.get('/users', adminAuth, async (req, res) => {
   try {
     const users = await models.User.findAll({
       attributes: { exclude: ['password'] },
@@ -416,6 +586,155 @@ router.get('/users', async (req, res) => {
     res.json({ success: true, users });
   } catch (error) {
     console.error('Admin users error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Get single opportunity
+// @route   GET /api/admin/opportunities/:id
+// @access  Private (Admin only)
+router.get('/opportunities/:id', adminAuth, async (req, res) => {
+  try {
+    const opportunity = await models.Opportunity.findByPk(req.params.id);
+    
+    if (!opportunity) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found' });
+    }
+
+    res.json({ success: true, opportunity });
+  } catch (error) {
+    console.error('Get opportunity error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Update opportunity
+// @route   PUT /api/admin/opportunities/:id
+// @access  Private (Admin only)
+router.put('/opportunities/:id', adminAuth, async (req, res) => {
+  try {
+    const { title, type, description, applicationDeadline, applicationLink, organization, location, isActive } = req.body;
+    
+    const opportunity = await models.Opportunity.findByPk(req.params.id);
+    if (!opportunity) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found' });
+    }
+
+    await opportunity.update({
+      title,
+      type,
+      description,
+      applicationDeadline,
+      applicationLink,
+      organization,
+      location,
+      isActive: isActive !== undefined ? isActive : true
+    });
+    
+    res.json({ success: true, opportunity });
+  } catch (error) {
+    console.error('Update opportunity error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Delete opportunity
+// @route   DELETE /api/admin/opportunities/:id
+// @access  Private (Admin only)
+router.delete('/opportunities/:id', adminAuth, async (req, res) => {
+  try {
+    const opportunity = await models.Opportunity.findByPk(req.params.id);
+    if (!opportunity) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found' });
+    }
+
+    await opportunity.destroy();
+    
+    res.json({ success: true, message: 'Opportunity deleted successfully' });
+  } catch (error) {
+    console.error('Delete opportunity error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Create new opportunity
+// @route   POST /api/admin/opportunities
+// @access  Private (Admin only)
+router.post('/opportunities', adminAuth, async (req, res) => {
+  try {
+    const { title, type, description, applicationDeadline, applicationLink, organization, location } = req.body;
+    
+    const opportunity = await models.Opportunity.create({
+      title,
+      type,
+      description,
+      applicationDeadline,
+      applicationLink,
+      organization,
+      location,
+      isActive: true
+    });
+    
+    res.status(201).json({ success: true, opportunity });
+  } catch (error) {
+    console.error('Create opportunity error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Get all reports for admin
+// @route   GET /api/admin/reports
+// @access  Private (Admin only)
+router.get('/reports', adminAuth, async (req, res) => {
+  try {
+    const reports = await models.Report.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 100
+    });
+
+    res.json({ success: true, reports });
+  } catch (error) {
+    console.error('Admin reports error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Update report status
+// @route   PUT /api/admin/reports/:id
+// @access  Private (Admin only)
+router.put('/reports/:id', adminAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    const report = await models.Report.findByPk(req.params.id);
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    await report.update({ status });
+    
+    res.json({ success: true, report });
+  } catch (error) {
+    console.error('Update report error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Delete report
+// @route   DELETE /api/admin/reports/:id
+// @access  Private (Admin only)
+router.delete('/reports/:id', adminAuth, async (req, res) => {
+  try {
+    const report = await models.Report.findByPk(req.params.id);
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    await report.destroy();
+    
+    res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (error) {
+    console.error('Delete report error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
