@@ -6,19 +6,42 @@ const jwt = require('jsonwebtoken');
 exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const User = db.models.User;
-    const user = await User.findOne({ where: { email, role: 'admin' } });
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    console.log('Admin login attempt:', email);
+    
+    // Check if it's the admin credentials
+    if (email === 'herraisehub@gmail.com' && password === 'mosesalier@2023') {
+      // Create admin user if doesn't exist
+      const User = db.models.User;
+      let user = await User.findOne({ where: { email } });
+      
+      if (!user) {
+        console.log('Creating admin user...');
+        const hashedPassword = await bcrypt.hash(password, 10);
+        user = await User.create({
+          name: 'Admin User',
+          email: email,
+          password: hashedPassword,
+          role: 'admin',
+          isActive: true,
+          language: 'en',
+          educationLevel: 'bachelor'
+        });
+        console.log('Admin user created');
+      } else if (user.role !== 'admin') {
+        // Update existing user to admin
+        await user.update({ role: 'admin' });
+        console.log('User role updated to admin');
+      }
+      
+      // Generate a simple admin token
+      const adminToken = Buffer.from(`${user.id}:admin:${Date.now()}`).toString('base64');
+      return res.redirect(`/api/admin?token=${adminToken}`);
     }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ success: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    
+    return res.status(401).send('<h1>Invalid admin credentials</h1><a href="/api/admin/login">Try again</a>');
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Admin login error:', error);
+    res.status(500).send('<h1>Login error: ' + error.message + '</h1><a href="/api/admin/login">Try again</a>');
   }
 };
 

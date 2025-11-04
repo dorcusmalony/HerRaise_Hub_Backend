@@ -44,19 +44,37 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 500 * 1024 * 1024, // 500MB limit for videos
   },
   fileFilter: (req, file, cb) => {
-    // Allow images, videos, documents, audio
-    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|webm|pdf|doc|docx|ppt|pptx|txt|mp3|wav|ogg/;
+    // Allow all common file types
+    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|tiff|svg|mp4|mov|avi|webm|mkv|flv|wmv|m4v|3gp|pdf|doc|docx|ppt|pptx|xls|xlsx|txt|rtf|mp3|wav|ogg|aac|flac|m4a|zip|rar|7z|tar|gz/;
     const extname = allowedTypes.test(file.originalname.toLowerCase());
-    const mimetype = /^(image|video|audio)\//.test(file.mimetype) || 
-                    ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain'].includes(file.mimetype);
     
-    if (mimetype && extname) {
+    // Allow most common mimetypes
+    const allowedMimetypes = [
+      // Images
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml',
+      // Videos
+      'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/x-matroska', 'video/x-flv', 'video/x-ms-wmv', 'video/3gpp',
+      // Audio
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/mp4',
+      // Documents
+      'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain', 'text/rtf',
+      // Archives
+      'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed', 'application/x-tar', 'application/gzip'
+    ];
+    
+    const mimetypeAllowed = allowedMimetypes.includes(file.mimetype) || /^(image|video|audio)\//.test(file.mimetype);
+    
+    if (mimetypeAllowed || extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Allowed: images, videos, documents, audio'));
+      console.log('Rejected file:', file.originalname, 'mimetype:', file.mimetype);
+      cb(new Error(`Invalid file type: ${file.mimetype}. File: ${file.originalname}`));
     }
   }
 });

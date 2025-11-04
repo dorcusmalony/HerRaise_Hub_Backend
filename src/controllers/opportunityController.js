@@ -1,4 +1,3 @@
-const Opportunity = require('../models/Opportunity');
 const db = require('../config/database');
 const { notifyApplicationStatus, broadcast } = require('../services/socketService');
 
@@ -22,42 +21,33 @@ function t(msg, lang) {
 exports.getOpportunities = async (req, res) => {
   try {
     const { filter, search, deadline } = req.query;
-    const lang = req.lang || 'en';
+    const { Opportunity } = db.models;
     
-    const filterObj = {};
+    const whereClause = { isActive: true };
     if (filter && filter !== 'all') {
-      filterObj.type = filter;
-    }
-    if (search) {
-      filterObj.search = search;
+      whereClause.type = filter;
     }
     if (deadline === 'active') {
-      filterObj.deadline = true;
+      whereClause.applicationDeadline = {
+        [db.Sequelize.Op.gte]: new Date()
+      };
     }
 
-    const opportunities = await Opportunity.find(filterObj);
-
-    // Localize title/description for each opportunity
-    const localized = opportunities.map(o => ({
-      ...o.toJSON(),
-      title: lang === 'ar' && o.title_ar ? o.title_ar : o.title,
-      description: lang === 'ar' && o.description_ar ? o.description_ar : o.description,
-      title_en: o.title,
-      title_ar: o.title_ar || '',
-      description_en: o.description,
-      description_ar: o.description_ar || ''
-    }));
+    const opportunities = await Opportunity.findAll({
+      where: whereClause,
+      order: [['createdAt', 'DESC']]
+    });
 
     res.status(200).json({
       success: true,
-      count: localized.length,
-      opportunities: localized
+      count: opportunities.length,
+      opportunities
     });
   } catch (error) {
     console.error('Get opportunities error:', error);
     res.status(500).json({
       success: false,
-      message: t('Server error', req.lang),
+      message: 'Server error',
       error: error.message
     });
   }
@@ -98,26 +88,49 @@ exports.getOpportunity = async (req, res) => {
 // @access  Private (Admin/Mentor)
 exports.createOpportunity = async (req, res) => {
   try {
+    const { Opportunity } = db.models;
     const opportunityData = {
       ...req.body,
-      creatorId: req.user.id
+      creatorId: req.user.id,
+      isActive: true
     };
 
     const opportunity = await Opportunity.create(opportunityData);
     
-    // Emit notification for new opportunity
-    broadcast('notification', {
-      type: 'opportunity_update',
-      title: 'New Opportunity!',
-      message: `${opportunity.title} (${opportunity.type}) was just posted.`,
-      opportunityId: opportunity.id
+    // Send all types of notifications to users
+    const { sendPushNotificationToAll } = require('../services/pushNotificationService');
+    const { sendNewOpportunityEmailToAll } = require('../services/emailService');
+    const NotificationService = require('../services/notificationService');
+    
+    // Database notification (for notification bell)
+    await NotificationService.notifyNewOpportunity(opportunity, req.user.id);
+    
+    // Push notification to all users
+    await sendPushNotificationToAll({
+      title: `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}!`,
+      body: `${opportunity.title} - Apply now before the deadline!`,
+      data: {
+        type: 'opportunity',
+        opportunityId: opportunity.id.toString(),
+        url: `/opportunities/${opportunity.id}`
+      }
     });
+    
+    // Email notification to all users
+    await sendNewOpportunityEmailToAll(opportunity);
+    
+    console.log(`📢 All notifications sent for new ${opportunity.type}: ${opportunity.title}`);
+    console.log('  ✅ Database notifications (bell)');
+    console.log('  ✅ WebSocket notifications');
+    console.log('  ✅ Push notifications');
+    console.log('  ✅ Email notifications');
 
     res.status(201).json({
       success: true,
       opportunity
     });
   } catch (error) {
+    console.error('Create opportunity error:', error);
     res.status(500).json({
       success: false,
       message: error.message

@@ -200,8 +200,8 @@ const initializeReminderCrons = () => {
   // Check reminders every hour
   cron.schedule('0 * * * *', checkReminders);
   
-  // Check upcoming deadlines daily at 9 AM
-  cron.schedule('0 9 * * *', checkUpcomingDeadlines);
+  // Check upcoming deadlines daily at 10 AM (different from reminder service)
+  cron.schedule('0 10 * * *', checkUpcomingDeadlines);
   
   console.log('Application reminder cron jobs initialized');
 };
