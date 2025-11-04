@@ -136,7 +136,7 @@ const sendWelcomeEmail = async (email, userName) => {
 };
 
 // Deadline reminder email template
-const sendDeadlineReminder = async (user, opportunity) => {
+const sendDeadlineReminder = async (email, firstName, opportunity) => {
   const opportunityUrl = `${process.env.FRONTEND_URL}/opportunities/${opportunity.id}`;
   const deadlineDate = new Date(opportunity.applicationDeadline).toLocaleDateString();
   
@@ -146,7 +146,7 @@ const sendDeadlineReminder = async (user, opportunity) => {
         <h1>⏰ Deadline Reminder!</h1>
       </div>
       <div style="padding: 30px;">
-        <h2 style="color: #333;">Hi ${user.name}! 👋</h2>
+        <h2 style="color: #333;">Hi ${firstName}! 👋</h2>
         <p>This is a friendly reminder about an opportunity you showed interest in:</p>
         
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff6b35;">
@@ -184,15 +184,159 @@ const sendDeadlineReminder = async (user, opportunity) => {
   `;
 
   return await sendEmail({
-    to: user.email,
+    to: email,
     subject: `⏰ Reminder: ${opportunity.title} deadline in 3 days!`,
     html
   });
+};
+
+// New opportunity email template
+const sendNewOpportunityEmail = async (user, opportunity) => {
+  const opportunityUrl = `${process.env.FRONTEND_URL}/opportunities/${opportunity.id}`;
+  const deadlineDate = new Date(opportunity.applicationDeadline).toLocaleDateString();
+  
+  const html = `
+    <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+      <div style="text-align: center; padding: 20px; background-color: #6A1B9A; color: white;">
+        <h1>🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)} Available!</h1>
+      </div>
+      <div style="padding: 30px;">
+        <h2 style="color: #333;">Hi ${user.name}! 👋</h2>
+        <p>Great news! A new ${opportunity.type} has just been posted on HerRaise Hub:</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6A1B9A;">
+          <h3 style="color: #6A1B9A; margin-top: 0;">${opportunity.title}</h3>
+          <p><strong>Type:</strong> ${opportunity.type}</p>
+          <p><strong>Organization:</strong> ${opportunity.organization || 'Not specified'}</p>
+          <p><strong>Location:</strong> ${opportunity.location || 'Not specified'}</p>
+          <p style="color: #d63384; font-weight: bold;">📅 <strong>Deadline:</strong> ${deadlineDate}</p>
+          <p><strong>Description:</strong></p>
+          <p style="color: #666;">${opportunity.description.substring(0, 200)}...</p>
+        </div>
+        
+        <p>Don't miss out on this amazing opportunity! Click below to view full details and apply:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${opportunityUrl}" 
+             style="background-color: #6A1B9A; color: white; padding: 15px 30px; 
+                    text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            View & Apply Now 🚀
+          </a>
+        </div>
+        
+        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #2d5a2d;"><strong>💡 Pro Tip:</strong> Apply early! Many opportunities are reviewed on a rolling basis.</p>
+        </div>
+        
+        <p>Best of luck with your application! We're here to support your journey. 💪</p>
+        
+        <p>Best regards,<br>
+        <strong>The HerRaise Hub Team</strong></p>
+      </div>
+      <hr style="margin: 30px 0;">
+      <div style="text-align: center; color: #666; font-size: 12px;">
+        <p>HerRaise Hub - Empowering Women in South Sudan</p>
+        <p>You received this email because you're a registered member of HerRaise Hub.</p>
+        <p><a href="${process.env.FRONTEND_URL}/profile" style="color: #6A1B9A;">Update notification preferences</a></p>
+      </div>
+    </div>
+  `;
+
+  return await sendEmail({
+    to: user.email,
+    subject: `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}: ${opportunity.title}`,
+    html
+  });
+};
+
+// Send email to all users about new opportunity
+const sendNewOpportunityEmailToAll = async (opportunity) => {
+  try {
+    const db = require('../config/database');
+    const { User } = db.models;
+    
+    // Get all active users
+    const users = await User.findAll({
+      where: { isActive: true },
+      attributes: ['id', 'name', 'email']
+    });
+
+    console.log(`📧 Sending opportunity emails to ${users.length} users`);
+    
+    // Send emails in batches to avoid overwhelming the email service
+    const batchSize = 10;
+    for (let i = 0; i < users.length; i += batchSize) {
+      const batch = users.slice(i, i + batchSize);
+      
+      const emailPromises = batch.map(user => 
+        sendNewOpportunityEmail(user, opportunity).catch(error => {
+          console.error(`Failed to send email to ${user.email}:`, error.message);
+        })
+      );
+      
+      await Promise.allSettled(emailPromises);
+      
+      // Small delay between batches
+      if (i + batchSize < users.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log(`✅ Opportunity email notifications sent successfully`);
+  } catch (error) {
+    console.error('Error sending opportunity emails to all users:', error);
+  }
+};
+
+// Send weekly opportunity digest
+const sendWeeklyOpportunityDigest = async (email, firstName, opportunities) => {
+  try {
+    const opportunityList = opportunities.map(opp => `
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+        <h4 style="color: #2c3e50; margin-top: 0;">${opp.title}</h4>
+        <p style="color: #555; font-size: 14px;">${opp.description.substring(0, 150)}...</p>
+        <div style="margin: 10px 0;">
+          <strong>Deadline:</strong> ${new Date(opp.applicationDeadline).toLocaleDateString()}
+        </div>
+        <a href="${opp.applicationLink}" 
+           style="background-color: #28a745; color: white; padding: 8px 16px; 
+                  text-decoration: none; border-radius: 4px; font-size: 14px;">
+          View Details
+        </a>
+      </div>
+    `).join('');
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">📚 Weekly Opportunities Digest</h2>
+        <p>Hi ${firstName},</p>
+        <p>Here are the current opportunities still open for applications:</p>
+        ${opportunityList}
+        <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="color: #1976d2; margin: 0; text-align: center;">
+            💡 <strong>Tip:</strong> Don't wait until the last minute - start your applications early!
+          </p>
+        </div>
+        <p style="color: #666; font-size: 14px;">Best regards,<br>HerRaise Hub Team</p>
+      </div>
+    `;
+
+    return await sendEmail({
+      to: email,
+      subject: `Weekly Opportunities Digest - ${opportunities.length} Open Applications`,
+      html
+    });
+  } catch (error) {
+    console.error('Error sending weekly digest:', error);
+  }
 };
 
 module.exports = {
   sendEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-  sendDeadlineReminder
+  sendDeadlineReminder,
+  sendNewOpportunityEmail,
+  sendNewOpportunityEmailToAll,
+  sendWeeklyOpportunityDigest
 };

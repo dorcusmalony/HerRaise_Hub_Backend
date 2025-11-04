@@ -1,10 +1,9 @@
 const db = require('../config/database');
-const webpush = require('web-push');
-const { getIO } = require('./socketService');
+const { broadcast } = require('./socketService');
 
 class NotificationService {
-  // Create a new notification
-  async createNotification(userId, type, title, message, data = {}, priority = 'normal') {
+  // Create notification in database
+  static async createNotification(userId, type, title, message, data = {}, relatedId = null, link = null) {
     try {
       const { Notification } = db.models;
       
@@ -14,209 +13,252 @@ class NotificationService {
         title,
         message,
         data,
-        priority
+        relatedId,
+        link,
+        readStatus: false
       });
 
-      // Send real-time notification via socket
-      this.sendSocketNotification(userId, notification);
-
-      // Send push notification
-      this.sendPushNotification(userId, notification);
+      // Send real-time notification
+      broadcast('notification', {
+        id: notification.id,
+        type,
+        title,
+        message,
+        data,
+        timestamp: notification.createdAt,
+        userId
+      });
 
       return notification;
     } catch (error) {
       console.error('Error creating notification:', error);
-      throw error;
     }
   }
 
-  // Send real-time notification via socket
-  sendSocketNotification(userId, notification) {
-    const io = getIO();
-    if (io) {
-      console.log(`📤 Sending socket notification to user_${userId}:`, notification.title);
-      io.to(`user_${userId}`).emit('notification', notification);
-    } else {
-      console.log('⚠️ Socket.IO not initialized');
-    }
-  }
-
-  // Send push notification
-  async sendPushNotification(userId, notification) {
+  // Send notification to all users except sender
+  static async notifyAllUsers(type, title, message, data = {}, excludeUserId = null, link = null) {
     try {
-      const { PushSubscription } = db.models;
-      if (!PushSubscription) {
-        console.log('⚠️ PushSubscription model not found, skipping push notifications');
-        return;
-      }
-      
-      const subscriptions = await PushSubscription.findAll({
-        where: { userId }
-      });
-
-      const payload = JSON.stringify({
-        title: notification.title,
-        body: notification.message,
-        icon: '/icon-192x192.png',
-        badge: '/badge-72x72.png',
-        data: notification.data
-      });
-
-      const promises = subscriptions.map(sub => {
-        const pushSubscription = {
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dhKey,
-            auth: sub.authKey
-          }
-        };
-
-        return webpush.sendNotification(pushSubscription, payload)
-          .catch(error => {
-            console.error('Push notification failed:', error);
-            // Remove invalid subscription
-            if (error.statusCode === 410) {
-              this.removeInvalidSubscription(sub.id);
-            }
-          });
-      });
-
-      await Promise.all(promises);
-    } catch (error) {
-      console.error('Error sending push notifications:', error);
-    }
-  }
-
-  // Remove invalid subscription
-  async removeInvalidSubscription(subscriptionId) {
-    try {
-      const { PushSubscription } = db.models;
-      await PushSubscription.destroy({ where: { id: subscriptionId } });
-    } catch (error) {
-      console.error('Error removing invalid subscription:', error);
-    }
-  }
-
-  // Notify about new forum question
-  async notifyNewForumQuestion(questionData, excludeUserId) {
-    try {
-      // Get all users except the question author
       const { User } = db.models;
+      
       const users = await User.findAll({
-        where: { id: { [db.sequelize.Sequelize.Op.ne]: excludeUserId } },
+        where: { isActive: true },
         attributes: ['id']
       });
 
-      const promises = users.map(user => 
-        this.createNotification(
-          user.id,
-          'forum_question',
-          '❓ New Question Posted',
-          `${questionData.author.name}: ${questionData.title}`,
-          { postId: questionData.id, url: '/forum' },
-          'normal'
-        )
-      );
+      const notifications = users
+        .filter(user => user.id !== excludeUserId)
+        .map(user => ({
+          userId: user.id,
+          type,
+          title,
+          message,
+          data,
+          link,
+          readStatus: false
+        }));
 
-      await Promise.all(promises);
+      if (notifications.length > 0) {
+        const { Notification } = db.models;
+        await Notification.bulkCreate(notifications);
+        
+        // Send real-time notifications
+        broadcast('notification', {
+          type,
+          title,
+          message,
+          data,
+          timestamp: new Date(),
+          broadcast: true
+        });
+      }
+
+      console.log(`📢 Sent ${type} notification to ${notifications.length} users`);
     } catch (error) {
-      console.error('Error notifying new forum question:', error);
+      console.error('Error sending notifications to all users:', error);
     }
   }
 
-  // Notify about new answer
-  async notifyNewAnswer(answerData) {
-    try {
-      await this.createNotification(
-        answerData.questionAuthorId,
-        'forum_answer',
-        '💡 Someone Answered Your Question',
-        `${answerData.author.name} answered: ${answerData.questionTitle}`,
-        { postId: answerData.questionId, url: '/forum' },
-        'high'
-      );
-    } catch (error) {
-      console.error('Error notifying new answer:', error);
-    }
+  // New opportunity notification
+  static async notifyNewOpportunity(opportunity, creatorId) {
+    await this.notifyAllUsers(
+      'opportunity',
+      `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}!`,
+      `${opportunity.title} - Check it out now!`,
+      {
+        opportunityId: opportunity.id,
+        opportunityType: opportunity.type,
+        organization: opportunity.organization
+      },
+      creatorId,
+      `/opportunities/${opportunity.id}`
+    );
   }
 
-  // Notify about new comment
-  async notifyNewComment(commentData) {
-    try {
+  // New forum post notification
+  static async notifyNewForumQuestion(post, authorId) {
+    await this.notifyAllUsers(
+      'forum_question',
+      '💬 New Forum Post',
+      `${post.author.name} posted: "${post.title}"`,
+      {
+        postId: post.id,
+        authorName: post.author.name
+      },
+      authorId,
+      `/forum/posts/${post.id}`
+    );
+  }
+
+  // New comment notification (to post author)
+  static async notifyNewComment(comment, post, commentAuthorId) {
+    if (post.authorId !== commentAuthorId) {
       await this.createNotification(
-        commentData.postAuthorId,
+        post.authorId,
         'forum_comment',
-        '💬 New Comment',
-        `${commentData.author.name} commented: "${commentData.content.substring(0, 50)}..."`,
-        { postId: commentData.postId, url: '/forum' },
-        'normal'
+        '💬 New Comment on Your Post',
+        `${comment.author.name} commented on "${post.title}"`,
+        {
+          postId: post.id,
+          commentId: comment.id,
+          commentAuthor: comment.author.name
+        },
+        comment.id,
+        `/forum/posts/${post.id}`
       );
-    } catch (error) {
-      console.error('Error notifying new comment:', error);
     }
   }
 
-  // Notify about post like
-  async notifyPostLiked(likeData) {
-    try {
+  // Like notification
+  static async notifyPostLike(post, likerUserId, likerName) {
+    if (post.authorId !== likerUserId) {
       await this.createNotification(
-        likeData.postAuthorId,
+        post.authorId,
         'forum_like',
-        '❤️ Someone Liked Your Post',
-        `${likeData.author.name} liked your post: ${likeData.postTitle}`,
-        { postId: likeData.postId, url: '/forum' },
-        'low'
+        '👍 Someone Liked Your Post',
+        `${likerName} liked your post "${post.title}"`,
+        {
+          postId: post.id,
+          likerName
+        },
+        post.id,
+        `/forum/posts/${post.id}`
       );
-    } catch (error) {
-      console.error('Error notifying post liked:', error);
     }
   }
 
-  // Notify about new opportunity
-  async notifyNewOpportunity(opportunityData) {
-    try {
-      const { User } = db.models;
-      const users = await User.findAll({ attributes: ['id'] });
-      
-      const promises = users.map(user => 
-        this.createNotification(
-          user.id,
-          'opportunity',
-          '🎯 New Opportunity Available',
-          `New ${opportunityData.type}: ${opportunityData.title}`,
-          { opportunityId: opportunityData.id, url: '/opportunities' },
-          'high'
-        )
-      );
+  // File upload notification
+  static async notifyFileUpload(fileName, uploaderName, uploaderId) {
+    await this.notifyAllUsers(
+      'forum_answer',
+      '📎 New File Uploaded',
+      `${uploaderName} uploaded: ${fileName}`,
+      {
+        fileName,
+        uploaderName
+      },
+      uploaderId,
+      '/forum'
+    );
+  }
 
-      await Promise.all(promises);
+  // Application status update
+  static async notifyApplicationUpdate(userId, opportunity, status) {
+    const statusMessages = {
+      'under_review': '📋 Application Under Review',
+      'shortlisted': '🎉 You\'ve Been Shortlisted!',
+      'accepted': '🎊 Congratulations! Application Accepted',
+      'rejected': '📝 Application Update'
+    };
+
+    await this.createNotification(
+      userId,
+      'application_update',
+      statusMessages[status] || '📋 Application Update',
+      `Your application for "${opportunity.title}" has been ${status.replace('_', ' ')}`,
+      {
+        opportunityId: opportunity.id,
+        status
+      },
+      opportunity.id,
+      `/opportunities/${opportunity.id}`
+    );
+  }
+
+  // Deadline reminder
+  static async notifyDeadlineReminder(userId, opportunity) {
+    await this.createNotification(
+      userId,
+      'deadline_reminder',
+      '⏰ Deadline Reminder',
+      `"${opportunity.title}" deadline is approaching in 3 days!`,
+      {
+        opportunityId: opportunity.id,
+        deadline: opportunity.applicationDeadline
+      },
+      opportunity.id,
+      `/opportunities/${opportunity.id}`
+    );
+  }
+
+  // Get user notifications
+  static async getUserNotifications(userId, limit = 20, offset = 0) {
+    try {
+      const { Notification } = db.models;
+      
+      const notifications = await Notification.findAll({
+        where: { userId },
+        order: [['createdAt', 'DESC']],
+        limit,
+        offset
+      });
+
+      const unreadCount = await Notification.count({
+        where: { userId, readStatus: false }
+      });
+
+      return {
+        notifications,
+        unreadCount,
+        total: notifications.length
+      };
     } catch (error) {
-      console.error('Error notifying new opportunity:', error);
+      console.error('Error getting user notifications:', error);
+      return { notifications: [], unreadCount: 0, total: 0 };
     }
   }
 
-  // Notify about new resource
-  async notifyNewResource(resourceData) {
+  // Mark notification as read
+  static async markAsRead(notificationId, userId) {
     try {
-      const { User } = db.models;
-      const users = await User.findAll({ attributes: ['id'] });
+      const { Notification } = db.models;
       
-      const promises = users.map(user => 
-        this.createNotification(
-          user.id,
-          'website_update',
-          '📚 New Resource Added',
-          `New resource: ${resourceData.title}`,
-          { resourceId: resourceData.id, url: '/resources' },
-          'normal'
-        )
+      await Notification.update(
+        { readStatus: true },
+        { 
+          where: { 
+            id: notificationId, 
+            userId 
+          } 
+        }
       );
-
-      await Promise.all(promises);
     } catch (error) {
-      console.error('Error notifying new resource:', error);
+      console.error('Error marking notification as read:', error);
+    }
+  }
+
+  // Mark all notifications as read
+  static async markAllAsRead(userId) {
+    try {
+      const { Notification } = db.models;
+      
+      await Notification.update(
+        { readStatus: true },
+        { where: { userId, readStatus: false } }
+      );
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
     }
   }
 }
 
-module.exports = new NotificationService();
+module.exports = NotificationService;

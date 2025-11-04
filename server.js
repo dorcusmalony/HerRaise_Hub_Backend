@@ -24,9 +24,9 @@ async function start() {
 
     // Now require the app (routes/controllers can safely access db.models)
     const app = require('./src/app');
-
-    // AdminJS temporarily disabled due to configuration issues
-    console.log('⚠️ AdminJS disabled - use API endpoints for admin tasks');
+    
+    // Admin panel now mounted in app.js
+    console.log('✅ Admin panel will be available at /admin');
 
     const server = app.listen(PORT, () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
@@ -47,8 +47,7 @@ async function start() {
       initializeReminderCrons();
     }
     
-    // Start deadline reminder scheduler
-    ReminderService.startReminderScheduler();
+    // Start reminder jobs (already initialized in app.js)
 
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {

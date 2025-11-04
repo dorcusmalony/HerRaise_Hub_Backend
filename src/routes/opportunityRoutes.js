@@ -16,7 +16,7 @@ const { protect, authorize } = require('../middleware/auth');
 // Opportunity routes
 router.route('/')
   .get(getOpportunities)
-  .post(protect, authorize('admin', 'mentor'), createOpportunity);
+  .post(protect, createOpportunity);
 
 router.route('/:id')
   .get(getOpportunity)

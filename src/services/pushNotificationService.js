@@ -63,6 +63,26 @@ class PushNotificationService {
     await Promise.allSettled(promises);
   }
 
+  // Send notification to all users
+  static async sendPushNotificationToAll(payload) {
+    try {
+      const { User } = db.models;
+      
+      // Get all active users
+      const users = await User.findAll({
+        where: { isActive: true },
+        attributes: ['id']
+      });
+
+      const userIds = users.map(user => user.id);
+      console.log(`📱 Sending push notification to ${userIds.length} users`);
+      
+      await this.sendBulkPushNotification(userIds, payload);
+    } catch (error) {
+      console.error('Error sending push notification to all users:', error);
+    }
+  }
+
   // Generate VAPID keys (run once to generate keys)
   static generateVapidKeys() {
     return webpush.generateVAPIDKeys();
