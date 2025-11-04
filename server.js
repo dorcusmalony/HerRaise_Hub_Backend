@@ -47,8 +47,7 @@ async function start() {
       initializeReminderCrons();
     }
     
-    // Start deadline reminder scheduler
-    ReminderService.startReminderScheduler();
+    // Start reminder jobs (already initialized in app.js)
 
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {

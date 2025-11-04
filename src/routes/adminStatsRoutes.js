@@ -375,8 +375,16 @@ router.get('/', adminAuth, (req, res) => {
         }
         
         function logout() {
+          // Clear all possible admin tokens
           document.cookie = 'adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          window.location.href = '/api/admin/login';
+          document.cookie = 'admin_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          
+          // Clear session storage
+          sessionStorage.clear();
+          localStorage.clear();
+          
+          // Redirect to login
+          window.location.replace('/api/admin/auth/login');
         }
         
         let editingOpportunityId = null;
@@ -674,6 +682,34 @@ router.post('/opportunities', adminAuth, async (req, res) => {
       location,
       isActive: true
     });
+    
+    // Send all types of notifications to users
+    const { sendPushNotificationToAll } = require('../services/pushNotificationService');
+    const { sendNewOpportunityEmailToAll } = require('../services/emailService');
+    const NotificationService = require('../services/notificationService');
+    
+    // Database notification (for notification bell)
+    await NotificationService.notifyNewOpportunity(opportunity, 'admin');
+    
+    // Push notification to all users
+    await sendPushNotificationToAll({
+      title: `🎯 New ${type.charAt(0).toUpperCase() + type.slice(1)}!`,
+      body: `${title} - Apply now before the deadline!`,
+      data: {
+        type: 'opportunity',
+        opportunityId: opportunity.id.toString(),
+        url: `/opportunities/${opportunity.id}`
+      }
+    });
+    
+    // Email notification to all users
+    await sendNewOpportunityEmailToAll(opportunity);
+    
+    console.log(`📢 All notifications sent for new ${type}: ${title}`);
+    console.log('  ✅ Database notifications (bell)');
+    console.log('  ✅ WebSocket notifications');
+    console.log('  ✅ Push notifications');
+    console.log('  ✅ Email notifications');
     
     res.status(201).json({ success: true, opportunity });
   } catch (error) {

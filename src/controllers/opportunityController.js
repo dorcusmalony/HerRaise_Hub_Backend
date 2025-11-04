@@ -97,13 +97,33 @@ exports.createOpportunity = async (req, res) => {
 
     const opportunity = await Opportunity.create(opportunityData);
     
-    // Emit notification for new opportunity
-    broadcast('notification', {
-      type: 'opportunity_update',
-      title: 'New Opportunity!',
-      message: `${opportunity.title} (${opportunity.type}) was just posted.`,
-      opportunityId: opportunity.id
+    // Send all types of notifications to users
+    const { sendPushNotificationToAll } = require('../services/pushNotificationService');
+    const { sendNewOpportunityEmailToAll } = require('../services/emailService');
+    const NotificationService = require('../services/notificationService');
+    
+    // Database notification (for notification bell)
+    await NotificationService.notifyNewOpportunity(opportunity, req.user.id);
+    
+    // Push notification to all users
+    await sendPushNotificationToAll({
+      title: `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}!`,
+      body: `${opportunity.title} - Apply now before the deadline!`,
+      data: {
+        type: 'opportunity',
+        opportunityId: opportunity.id.toString(),
+        url: `/opportunities/${opportunity.id}`
+      }
     });
+    
+    // Email notification to all users
+    await sendNewOpportunityEmailToAll(opportunity);
+    
+    console.log(`📢 All notifications sent for new ${opportunity.type}: ${opportunity.title}`);
+    console.log('  ✅ Database notifications (bell)');
+    console.log('  ✅ WebSocket notifications');
+    console.log('  ✅ Push notifications');
+    console.log('  ✅ Email notifications');
 
     res.status(201).json({
       success: true,

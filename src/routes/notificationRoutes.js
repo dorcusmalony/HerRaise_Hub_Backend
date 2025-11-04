@@ -1,43 +1,95 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
-  subscribeToPush,
-  unsubscribeFromPush,
-  createTestNotification,
-  createWebsiteNotification
-} = require('../controllers/notificationController');
+const NotificationService = require('../services/notificationService');
 
-// All routes require authentication
-router.use(protect);
+// @desc    Get user notifications
+// @route   GET /api/notifications
+// @access  Private
+router.get('/', protect, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0 } = req.query;
+    
+    const result = await NotificationService.getUserNotifications(
+      req.user.id,
+      parseInt(limit),
+      parseInt(offset)
+    );
 
-// Get user notifications
-router.get('/', getNotifications);
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
-// Get unread count
-router.get('/unread-count', getUnreadCount);
+// @desc    Get unread notifications count
+// @route   GET /api/notifications/unread-count
+// @access  Private
+router.get('/unread-count', protect, async (req, res) => {
+  try {
+    const { Notification } = require('../config/database').models;
+    
+    const unreadCount = await Notification.count({
+      where: { 
+        userId: req.user.id, 
+        readStatus: false 
+      }
+    });
 
-// Mark notification as read
-router.put('/:id/read', markAsRead);
+    res.json({
+      success: true,
+      unreadCount
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
-// Mark all notifications as read
-router.put('/mark-all-read', markAllAsRead);
+// @desc    Mark notification as read
+// @route   PUT /api/notifications/:id/read
+// @access  Private
+router.put('/:id/read', protect, async (req, res) => {
+  try {
+    await NotificationService.markAsRead(req.params.id, req.user.id);
+    
+    res.json({
+      success: true,
+      message: 'Notification marked as read'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
-// Subscribe to push notifications
-router.post('/subscribe', subscribeToPush);
-
-// Unsubscribe from push notifications
-router.delete('/unsubscribe', unsubscribeFromPush);
-
-// Create test notification (for development)
-router.post('/test', createTestNotification);
-
-// Create website notification (admin only)
-const adminJwt = require('../middleware/adminJwt');
-router.post('/website-update', adminJwt, createWebsiteNotification);
+// @desc    Mark all notifications as read
+// @route   PUT /api/notifications/mark-all-read
+// @access  Private
+router.put('/mark-all-read', protect, async (req, res) => {
+  try {
+    await NotificationService.markAllAsRead(req.user.id);
+    
+    res.json({
+      success: true,
+      message: 'All notifications marked as read'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
 module.exports = router;

@@ -429,6 +429,23 @@ exports.addComment = async (req, res) => {
       ]
     });
 
+    // Send notification to post author about new comment
+    const NotificationService = require('../services/notificationService');
+    await NotificationService.notifyNewComment(
+      {
+        id: comment.id,
+        author: {
+          name: req.user.name
+        }
+      },
+      {
+        id: post.id,
+        title: post.title,
+        authorId: post.authorId
+      },
+      req.user.id
+    );
+
     // Check if replying user is the post author
     const isPostAuthor = post.authorId.toString() === req.user.id;
 
@@ -559,6 +576,20 @@ exports.togglePostLike = async (req, res) => {
 
     post.likes = likes;
     await post.save();
+
+    // Send notification for new like (not unlike)
+    if (likeIndex === -1) {
+      const NotificationService = require('../services/notificationService');
+      await NotificationService.notifyPostLike(
+        {
+          id: post.id,
+          title: post.title,
+          authorId: post.authorId
+        },
+        req.user.id,
+        req.user.name
+      );
+    }
 
     res.status(200).json({
       success: true,
