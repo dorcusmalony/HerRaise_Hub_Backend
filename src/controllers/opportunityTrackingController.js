@@ -221,3 +221,70 @@ exports.getApplicationDashboard = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Get user's clicked/liked opportunities for dashboard
+exports.getClickedOpportunities = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { OpportunityInteraction, Opportunity } = db.models;
+    
+    const totalCount = await OpportunityInteraction.count({ where: { userId } });
+    
+    const clickedOpportunities = await OpportunityInteraction.findAll({
+      where: { userId },
+      include: [{
+        model: Opportunity,
+        attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description', 'applicationLink'],
+        required: false
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      message: 'Opportunities you have clicked/liked',
+      count: clickedOpportunities.length,
+      totalUserInteractions: totalCount,
+      opportunities: clickedOpportunities
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message,
+      error: error.name
+    });
+  }
+};
+
+// Create test tracking record
+exports.createTestRecord = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { OpportunityInteraction, Opportunity } = db.models;
+    
+    // Get first opportunity
+    const opportunity = await Opportunity.findOne();
+    if (!opportunity) {
+      return res.status(404).json({ success: false, message: 'No opportunities found' });
+    }
+    
+    // Create test record
+    const interaction = await OpportunityInteraction.create({
+      userId,
+      opportunityId: opportunity.id,
+      isInterested: true,
+      clickedAt: new Date(),
+      statusUpdatedAt: new Date()
+    });
+    
+    res.json({
+      success: true,
+      message: 'Test record created',
+      interaction,
+      opportunityTitle: opportunity.title
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
