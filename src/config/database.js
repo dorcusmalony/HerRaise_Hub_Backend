@@ -217,7 +217,10 @@ const connectDB = async () => {
     educationLevel: { type: DataTypes.STRING, defaultValue: 'secondary', allowNull: false },
     yearsOfExperience: { type: DataTypes.INTEGER, defaultValue: 0 },
     isVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
-    verificationDate: DataTypes.DATE
+    verificationDate: DataTypes.DATE,
+    emailVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
+    emailVerificationCode: DataTypes.STRING,
+    emailVerificationExpires: DataTypes.DATE
   }, { timestamps: true });
 
   // Hooks and methods

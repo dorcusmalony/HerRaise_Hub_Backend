@@ -8,7 +8,7 @@ const adminAuth = async (req, res, next) => {
     if (urlToken) {
       try {
         const decoded = Buffer.from(urlToken, 'base64').toString();
-        const [userId, role, timestamp] = decoded.split(':');
+        const [userId, role, _timestamp] = decoded.split(':');
         if (role === 'admin') {
           req.user = { id: userId, role: 'admin' };
           return next();
@@ -25,7 +25,7 @@ const adminAuth = async (req, res, next) => {
     }
     
     // Check for token in Authorization header
-    let token = req.header('Authorization')?.replace('Bearer ', '');
+    const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
       return res.status(401).send('<h1>Access Denied</h1><p><a href="/api/admin/login">Please login as admin</a></p>');

@@ -331,10 +331,56 @@ const sendWeeklyOpportunityDigest = async (email, firstName, opportunities) => {
   }
 };
 
+// Email verification template
+const sendVerificationEmail = async (email, userName, verificationCode) => {
+  const html = `
+    <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+      <div style="text-align: center; padding: 20px; background-color: #007bff; color: white;">
+        <h1>Verify Your Email 📧</h1>
+      </div>
+      <div style="padding: 30px;">
+        <h2 style="color: #333;">Hi ${userName}! 👋</h2>
+        <p>Thank you for registering with HerRaise Hub! To complete your registration, please verify your email address.</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+          <h3 style="color: #007bff; margin-top: 0;">Your Verification Code:</h3>
+          <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 8px; margin: 20px 0;">
+            ${verificationCode}
+          </div>
+          <p style="color: #666; font-size: 14px;">Enter this code in the verification screen to activate your account.</p>
+        </div>
+        
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #856404;"><strong>⏰ Important:</strong> This code expires in 5 minutes for security reasons.</p>
+        </div>
+        
+        <p>If you didn't create an account with HerRaise Hub, please ignore this email.</p>
+        
+        <p>Welcome to our community! 💪</p>
+        
+        <p>Best regards,<br>
+        <strong>The HerRaise Hub Team</strong></p>
+      </div>
+      <hr style="margin: 30px 0;">
+      <div style="text-align: center; color: #666; font-size: 12px;">
+        <p>HerRaise Hub - Empowering Women in South Sudan</p>
+        <p>This verification code was requested for email: ${email}</p>
+      </div>
+    </div>
+  `;
+
+  return await sendEmail({
+    to: email,
+    subject: 'Verify Your Email - HerRaise Hub',
+    html
+  });
+};
+
 module.exports = {
   sendEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendVerificationEmail,
   sendDeadlineReminder,
   sendNewOpportunityEmail,
   sendNewOpportunityEmailToAll,
