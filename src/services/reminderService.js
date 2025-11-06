@@ -8,6 +8,12 @@ class ReminderService {
   // Check for opportunities with 3 days left and send reminders
   static async sendDeadlineReminders() {
     try {
+      // Check if models are available
+      if (!models || !models.Opportunity) {
+        console.log('Database models not ready, skipping reminder check');
+        return;
+      }
+
       const threeDaysFromNow = new Date();
       threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
       
@@ -63,7 +69,8 @@ class ReminderService {
 
       console.log(`Sent deadline reminders for ${expiringOpportunities.length} opportunities`);
     } catch (error) {
-      console.error('Error sending deadline reminders:', error);
+      console.error('Error checking reminders:', error.message);
+      // Don't let reminder errors crash the app
     }
   }
 
