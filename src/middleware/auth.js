@@ -10,7 +10,7 @@ exports.protect = async (req, res, next) => {
     if (urlToken) {
       try {
         const decoded = Buffer.from(urlToken, 'base64').toString();
-        const [userId, role, timestamp] = decoded.split(':');
+        const [userId, role, _timestamp] = decoded.split(':');
         if (role === 'admin') {
           req.user = { id: userId, role: 'admin' };
           return next();

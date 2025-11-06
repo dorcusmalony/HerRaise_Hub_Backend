@@ -59,7 +59,7 @@ function formatUserForResponse(userInstance) {
   return formatted;
 }
 
-const { sendPasswordResetEmail, sendWelcomeEmail } = require('../services/emailService');
+const { sendPasswordResetEmail, sendWelcomeEmail, sendVerificationEmail } = require('../services/emailService');
 
 // Password validation function
 function validatePassword(password) {
@@ -211,6 +211,14 @@ exports.register = async (req, res) => {
       } : {})
     };
 
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    
+    userData.emailVerificationCode = verificationCode;
+    userData.emailVerificationExpires = verificationExpires;
+    userData.emailVerified = false;
+    
     console.log('Creating user with data:', {
       ...userData, 
       password: '[REDACTED]' // Don't log passwords
@@ -236,21 +244,23 @@ exports.register = async (req, res) => {
       user.MentorProfile = mentorProfile;
     }
 
-    const token = generateToken(user.id);
-
-    // Send welcome email
+    // Send verification email
     try {
-      await sendWelcomeEmail(user.email, user.name);
-      console.log('Welcome email sent to:', user.email);
+      await sendVerificationEmail(user.email, user.name, verificationCode);
+      console.log('Verification email sent to:', user.email);
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError.message);
-      // Don't fail registration if email fails
+      console.error('Failed to send verification email:', emailError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again.'
+      });
     }
 
     res.status(201).json({
       success: true,
-      token,
-      user: formatUserForResponse(user)
+      message: 'Registration initiated. Please check your email for verification code.',
+      email: user.email,
+      requiresVerification: true
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -340,14 +350,73 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+    
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email before logging in',
+        requiresVerification: true,
+        email: user.email
+      });
+    }
 
     const token = generateToken(user.id);
+
+    // Check for pending opportunities with approaching deadlines
+    let pendingReminders = [];
+    try {
+      const { OpportunityInteraction, Opportunity } = db.models;
+      const now = new Date();
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(now.getDate() + 7);
+      
+      const pendingOpportunities = await OpportunityInteraction.findAll({
+        where: {
+          userId: user.id,
+          isInterested: true,
+          applicationStatus: 'interested'
+        },
+        include: [{
+          model: Opportunity,
+          where: {
+            applicationDeadline: {
+              [Op.between]: [now, sevenDaysFromNow]
+            },
+            isActive: true
+          },
+          attributes: ['id', 'title', 'organization', 'applicationDeadline', 'type']
+        }],
+        order: [[Opportunity, 'applicationDeadline', 'ASC']]
+      });
+      
+      pendingReminders = pendingOpportunities.map(interaction => {
+        const deadline = new Date(interaction.Opportunity.applicationDeadline);
+        const daysRemaining = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+        
+        return {
+          id: interaction.Opportunity.id,
+          title: interaction.Opportunity.title,
+          organization: interaction.Opportunity.organization,
+          type: interaction.Opportunity.type,
+          applicationDeadline: interaction.Opportunity.applicationDeadline,
+          daysRemaining,
+          isUrgent: daysRemaining <= 3
+        };
+      });
+    } catch (reminderError) {
+      console.log('Failed to fetch pending reminders:', reminderError.message);
+    }
 
     // Return the same mentee profile shape as register
     res.status(200).json({
       success: true,
       token,
-      user: formatUserForResponse(user)
+      user: formatUserForResponse(user),
+      pendingReminders: {
+        count: pendingReminders.length,
+        opportunities: pendingReminders
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -570,6 +639,144 @@ function getPasswordStrength(password) {
   if (score <= 7) return 'strong';
   return 'very-strong';
 }
+
+// @desc    Verify email with 6-digit code
+// @route   POST /api/auth/verify-email
+// @access  Public
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and verification code are required'
+      });
+    }
+    
+    const User = await getUserModel();
+    const user = await User.findOne({ where: { email } });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already verified'
+      });
+    }
+    
+    if (!user.emailVerificationCode || user.emailVerificationCode !== code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code'
+      });
+    }
+    
+    if (new Date() > user.emailVerificationExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired'
+      });
+    }
+    
+    // Verify email and clear verification fields
+    user.emailVerified = true;
+    user.emailVerificationCode = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+    
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(user.email, user.name);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError.message);
+    }
+    
+    const token = generateToken(user.id);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      token,
+      user: formatUserForResponse(user)
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Resend verification code
+// @route   POST /api/auth/resend-verification
+// @access  Public
+exports.resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    const User = await getUserModel();
+    const user = await User.findOne({ where: { email } });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already verified'
+      });
+    }
+    
+    // Generate new verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    
+    user.emailVerificationCode = verificationCode;
+    user.emailVerificationExpires = verificationExpires;
+    await user.save();
+    
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationCode);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Verification code sent successfully'
+    });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 
 // @desc    Logout user
 // @route   POST /api/auth/logout
