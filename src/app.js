@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
+const _helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
@@ -26,6 +26,7 @@ const languageRoutes = require('./routes/languageRoutes');
 const landingRoutes = require('./routes/landingRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const opportunityTrackingRoutes = require('./routes/opportunityTrackingRoutes');
+const reminderRoutes = require('./routes/reminderRoutes');
 const ReminderService = require('./services/reminderService');
 const pushNotificationRoutes = require('./routes/pushNotificationRoutes');
 
@@ -175,6 +176,7 @@ app.use('/api/application-tracker', applicationTrackerRoutes);
 app.use('/api/landing', landingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tracking', opportunityTrackingRoutes);
+app.use('/api/reminders', reminderRoutes);
 app.use('/api/push-notifications', pushNotificationRoutes);
 app.use('/api', languageRoutes);
 
