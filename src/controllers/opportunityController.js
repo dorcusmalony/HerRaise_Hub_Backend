@@ -20,7 +20,7 @@ function t(msg, lang) {
 // @access  Public
 exports.getOpportunities = async (req, res) => {
   try {
-    const { filter, search, deadline } = req.query;
+    const { filter, deadline } = req.query;
     const { Opportunity } = db.models;
     
     const whereClause = { isActive: true };
@@ -58,7 +58,8 @@ exports.getOpportunities = async (req, res) => {
 // @access  Public
 exports.getOpportunity = async (req, res) => {
   try {
-    const opportunity = await Opportunity.findById(req.params.id);
+    const { Opportunity, OpportunityInteraction } = db.models;
+    const opportunity = await Opportunity.findByPk(req.params.id);
 
     if (!opportunity) {
       return res.status(404).json({
@@ -68,8 +69,24 @@ exports.getOpportunity = async (req, res) => {
     }
 
     // Increment view count
-    opportunity.views += 1;
+    opportunity.views = (opportunity.views || 0) + 1;
     await opportunity.save();
+
+    // Auto-track opportunity click for authenticated users
+    if (req.user && OpportunityInteraction) {
+      try {
+        await OpportunityInteraction.findOrCreate({
+          where: { userId: req.user.id, opportunityId: req.params.id },
+          defaults: {
+            isInterested: true,
+            clickedAt: new Date(),
+            statusUpdatedAt: new Date()
+          }
+        });
+      } catch (trackingError) {
+        // Continue without failing the request
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -143,7 +160,8 @@ exports.createOpportunity = async (req, res) => {
 // @access  Private (Admin/Creator)
 exports.updateOpportunity = async (req, res) => {
   try {
-    const opportunity = await Opportunity.findById(req.params.id);
+    const { Opportunity } = db.models;
+    const opportunity = await Opportunity.findByPk(req.params.id);
 
     if (!opportunity) {
       return res.status(404).json({
@@ -188,7 +206,8 @@ exports.updateOpportunity = async (req, res) => {
 // @access  Private (Admin/Creator)
 exports.deleteOpportunity = async (req, res) => {
   try {
-    const opportunity = await Opportunity.findById(req.params.id);
+    const { Opportunity } = db.models;
+    const opportunity = await Opportunity.findByPk(req.params.id);
 
     if (!opportunity) {
       return res.status(404).json({
@@ -226,10 +245,11 @@ exports.deleteOpportunity = async (req, res) => {
 // @access  Private
 exports.applyToOpportunity = async (req, res) => {
   try {
-    const { Application } = db.models;
+    const { Application, OpportunityInteraction } = db.models;
     const { applicationData, documents } = req.body;
 
-    const opportunity = await Opportunity.findById(req.params.id);
+    const { Opportunity } = db.models;
+    const opportunity = await Opportunity.findByPk(req.params.id);
 
     if (!opportunity) {
       return res.status(404).json({
@@ -289,14 +309,32 @@ exports.applyToOpportunity = async (req, res) => {
       await application.save();
     }
 
+    // Auto-track opportunity when user applies
+    if (OpportunityInteraction) {
+      try {
+        await OpportunityInteraction.findOrCreate({
+          where: { userId: req.user.id, opportunityId: req.params.id },
+          defaults: {
+            isInterested: true,
+            clickedAt: new Date(),
+            applicationStatus: 'in_progress',
+            statusUpdatedAt: new Date()
+          }
+        });
+      } catch (trackingError) {
+        // Continue without failing
+      }
+    }
+
     // Update opportunity applicants list
-    if (!opportunity.applicants.includes(req.user.id)) {
+    if (!opportunity.applicants || !opportunity.applicants.includes(req.user.id)) {
+      opportunity.applicants = opportunity.applicants || [];
       opportunity.applicants.push(req.user.id);
       await opportunity.save();
     }
 
     // Load opportunity details for notification
-    await application.reload({ include: [{ model: db.models.Opportunity }] });
+    await application.reload({ include: [{ model: Opportunity }] });
     
     // Emit real-time notification to user
     notifyApplicationStatus(req.user.id, application);

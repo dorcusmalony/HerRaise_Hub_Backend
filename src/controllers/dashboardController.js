@@ -5,7 +5,7 @@ const db = require('../config/database');
 // @access  Private
 exports.getDashboardData = async (req, res) => {
   try {
-    const { Opportunity, Application, ForumPost, Notification } = db.models;
+    const { Opportunity, Application, ForumPost, Notification, OpportunityInteraction } = db.models;
     const userId = req.user.id;
 
     // Get user's applications
@@ -19,12 +19,33 @@ exports.getDashboardData = async (req, res) => {
       limit: 5
     });
 
+    // Get user's clicked/liked opportunities
+    let clickedOpportunities = [];
+    try {
+      clickedOpportunities = await OpportunityInteraction.findAll({
+        where: { userId },
+        include: [{
+          model: Opportunity,
+          attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description'],
+          required: false
+        }],
+        order: [['createdAt', 'DESC']],
+        limit: 8
+      });
+    } catch (trackingError) {
+      console.log('Tracking query failed:', trackingError.message);
+      // Continue without tracking data
+    }
+
     // Get recommended opportunities (active ones user hasn't applied to)
     const appliedOpportunityIds = userApplications.map(app => app.opportunityId);
+    const clickedOpportunityIds = clickedOpportunities.map(interaction => interaction.opportunityId);
+    const excludeIds = [...appliedOpportunityIds, ...clickedOpportunityIds];
+    
     const recommendedOpportunities = await Opportunity.findAll({
       where: { 
         isActive: true,
-        ...(appliedOpportunityIds.length > 0 ? { id: { [db.Sequelize.Op.notIn]: appliedOpportunityIds } } : {})
+        ...(excludeIds.length > 0 ? { id: { [db.Sequelize.Op.notIn]: excludeIds } } : {})
       },
       order: [['createdAt', 'DESC']],
       limit: 6,
@@ -54,6 +75,7 @@ exports.getDashboardData = async (req, res) => {
       totalApplications: userApplications.length,
       pendingApplications: userApplications.filter(app => app.status === 'submitted' || app.status === 'under_review').length,
       acceptedApplications: userApplications.filter(app => app.status === 'accepted').length,
+      clickedOpportunities: clickedOpportunities.length,
       forumPosts: userPosts.length,
       unreadNotifications: unreadNotifications.length
     };
@@ -68,6 +90,10 @@ exports.getDashboardData = async (req, res) => {
         },
         stats,
         recentApplications: userApplications,
+        clickedOpportunities: clickedOpportunities.map(interaction => ({
+          ...interaction.toJSON(),
+          opportunity: interaction.Opportunity
+        })),
         recommendedOpportunities,
         recentPosts: userPosts,
         notifications: unreadNotifications
@@ -87,13 +113,14 @@ exports.getDashboardData = async (req, res) => {
 // @access  Private
 exports.getQuickStats = async (req, res) => {
   try {
-    const { Application, ForumPost, Notification } = db.models;
+    const { Application, ForumPost, Notification, OpportunityInteraction } = db.models;
     const userId = req.user.id;
 
-    const [applications, posts, notifications] = await Promise.all([
+    const [applications, posts, notifications, clickedOpportunities] = await Promise.all([
       Application.count({ where: { userId } }),
       ForumPost.count({ where: { authorId: userId } }),
-      Notification.count({ where: { userId, readStatus: false } })
+      Notification.count({ where: { userId, readStatus: false } }),
+      OpportunityInteraction.count({ where: { userId } })
     ]);
 
     res.status(200).json({
@@ -101,7 +128,8 @@ exports.getQuickStats = async (req, res) => {
       stats: {
         applications,
         posts,
-        unreadNotifications: notifications
+        unreadNotifications: notifications,
+        clickedOpportunities
       }
     });
   } catch (error) {
@@ -110,5 +138,47 @@ exports.getQuickStats = async (req, res) => {
       success: false,
       message: 'Failed to load stats'
     });
+  }
+};
+
+// @desc    Track opportunity click
+// @route   POST /api/dashboard/track-opportunity/:opportunityId
+// @access  Private
+exports.trackOpportunity = async (req, res) => {
+  try {
+    const { OpportunityInteraction, Opportunity } = db.models;
+    const { opportunityId } = req.params;
+    const userId = req.user.id;
+    
+    const opportunity = await Opportunity.findByPk(opportunityId);
+    if (!opportunity) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found' });
+    }
+    
+    const [interaction, created] = await OpportunityInteraction.findOrCreate({
+      where: { userId, opportunityId },
+      defaults: {
+        isInterested: true,
+        clickedAt: new Date(),
+        statusUpdatedAt: new Date(),
+        applicationStatus: 'interested'
+      }
+    });
+    
+    if (!created && !interaction.isInterested) {
+      interaction.isInterested = true;
+      interaction.applicationStatus = 'interested';
+      interaction.statusUpdatedAt = new Date();
+      await interaction.save();
+    }
+    
+    res.json({
+      success: true,
+      message: 'Opportunity added to your liked opportunities',
+      liked: true,
+      created
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
