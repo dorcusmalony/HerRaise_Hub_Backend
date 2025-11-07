@@ -1,6 +1,5 @@
 const cron = require('node-cron');
 const { models } = require('../config/database');
-const emailService = require('./emailService');
 const notificationService = require('./notificationService');
 const { Op } = require('sequelize');
 
@@ -45,19 +44,12 @@ class ReminderService {
         });
 
         for (const interest of interestedUsers) {
-          // Send email reminder
-          await emailService.sendDeadlineReminder(
-            interest.user.email,
-            interest.user.firstName,
-            opportunity
-          );
-
-          // Send in-app notification
+          // Send in-app notification only
           await notificationService.createNotification({
             userId: interest.userId,
             type: 'deadline_reminder',
-            title: 'Application Deadline Reminder',
-            message: `Only 3 days left to apply for ${opportunity.title}!`,
+            title: 'Complete Your Application',
+            message: `Make sure to complete your application for "${opportunity.title}" - deadline is approaching in 3 days!`,
             relatedId: opportunity.id,
             relatedType: 'opportunity'
           });
@@ -89,14 +81,7 @@ class ReminderService {
 
       for (const user of allUsers) {
         if (activeOpportunities.length > 0) {
-          // Send weekly opportunity digest
-          await emailService.sendWeeklyOpportunityDigest(
-            user.email,
-            user.firstName,
-            activeOpportunities
-          );
-
-          // Send in-app notification
+          // Send in-app notification only
           await notificationService.createNotification({
             userId: user.id,
             type: 'weekly_reminder',
@@ -110,6 +95,85 @@ class ReminderService {
       console.log(`Sent weekly reminders to ${allUsers.length} users`);
     } catch (error) {
       console.error('Error sending weekly reminders:', error);
+    }
+  }
+
+  // Notify all users about new opportunity
+  static async notifyNewOpportunity(opportunity) {
+    try {
+      const allUsers = await models.User.findAll();
+      
+      for (const user of allUsers) {
+        await notificationService.createNotification({
+          userId: user.id,
+          type: 'new_opportunity',
+          title: 'New Opportunity Available',
+          message: `New ${opportunity.type}: "${opportunity.title}" has been posted!`,
+          relatedId: opportunity.id,
+          relatedType: 'opportunity'
+        });
+      }
+    } catch (error) {
+      console.error('Error notifying new opportunity:', error);
+    }
+  }
+
+  // Notify user when their opportunity gets a like
+  static async notifyOpportunityLike(opportunityId, likerName) {
+    try {
+      const opportunity = await models.Opportunity.findByPk(opportunityId);
+      if (opportunity) {
+        await notificationService.createNotification({
+          userId: opportunity.userId,
+          type: 'opportunity_like',
+          title: 'Your Opportunity Got a Like',
+          message: `${likerName} liked your opportunity "${opportunity.title}"`,
+          relatedId: opportunityId,
+          relatedType: 'opportunity'
+        });
+      }
+    } catch (error) {
+      console.error('Error notifying opportunity like:', error);
+    }
+  }
+
+  // Notify user when their opportunity gets a comment
+  static async notifyOpportunityComment(opportunityId, commenterName, commentText) {
+    try {
+      const opportunity = await models.Opportunity.findByPk(opportunityId);
+      if (opportunity) {
+        await notificationService.createNotification({
+          userId: opportunity.userId,
+          type: 'opportunity_comment',
+          title: 'New Comment on Your Opportunity',
+          message: `${commenterName} commented on "${opportunity.title}": ${commentText.substring(0, 50)}...`,
+          relatedId: opportunityId,
+          relatedType: 'opportunity'
+        });
+      }
+    } catch (error) {
+      console.error('Error notifying opportunity comment:', error);
+    }
+  }
+
+  // Notify user when someone replies to their comment
+  static async notifyCommentReply(commentId, replierName, replyText) {
+    try {
+      const comment = await models.Comment.findByPk(commentId, {
+        include: [models.Opportunity]
+      });
+      if (comment) {
+        await notificationService.createNotification({
+          userId: comment.userId,
+          type: 'comment_reply',
+          title: 'Reply to Your Comment',
+          message: `${replierName} replied to your comment on "${comment.Opportunity.title}": ${replyText.substring(0, 50)}...`,
+          relatedId: comment.opportunityId,
+          relatedType: 'opportunity'
+        });
+      }
+    } catch (error) {
+      console.error('Error notifying comment reply:', error);
     }
   }
 
