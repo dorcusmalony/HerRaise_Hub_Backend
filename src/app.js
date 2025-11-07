@@ -28,6 +28,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const opportunityTrackingRoutes = require('./routes/opportunityTrackingRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 const ReminderService = require('./services/reminderService');
+const CleanupService = require('./services/cleanupService');
 const pushNotificationRoutes = require('./routes/pushNotificationRoutes');
 
 const i18nMiddleware = require('./middleware/i18nMiddleware');
@@ -356,10 +357,11 @@ app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate
 
 
 
-// Initialize reminder service
+// Initialize services
 if (process.env.NODE_ENV !== 'test') {
   ReminderService.startReminderJobs();
-  console.log('✅ Opportunity tracking and reminder system initialized');
+  CleanupService.startCleanupJobs();
+  console.log('✅ Opportunity tracking, reminder, and cleanup systems initialized');
 }
 
 module.exports = app;

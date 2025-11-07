@@ -15,7 +15,7 @@ const {
 const { protect } = require('../middleware/auth');
 
 router.post('/register', register);
-router.post('/verify-email', verifyEmail);
+router.get('/verify/:token/:id', verifyEmail);
 router.post('/resend-verification', resendVerification);
 router.post('/login', login);
 router.post('/logout', protect, logout);

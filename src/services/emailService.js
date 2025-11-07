@@ -332,7 +332,9 @@ const sendWeeklyOpportunityDigest = async (email, firstName, opportunities) => {
 };
 
 // Email verification template
-const sendVerificationEmail = async (email, userName, verificationCode) => {
+const sendVerificationEmail = async (email, userName, verificationToken, userId) => {
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}&id=${userId}`;
+  
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
       <div style="text-align: center; padding: 20px; background-color: #007bff; color: white;">
@@ -340,18 +342,21 @@ const sendVerificationEmail = async (email, userName, verificationCode) => {
       </div>
       <div style="padding: 30px;">
         <h2 style="color: #333;">Hi ${userName}! 👋</h2>
-        <p>Thank you for registering with HerRaise Hub! To complete your registration, please verify your email address.</p>
+        <p>Thank you for registering with HerRaise Hub! To complete your registration, please verify your email address by clicking the button below.</p>
         
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-          <h3 style="color: #007bff; margin-top: 0;">Your Verification Code:</h3>
-          <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 8px; margin: 20px 0;">
-            ${verificationCode}
-          </div>
-          <p style="color: #666; font-size: 14px;">Enter this code in the verification screen to activate your account.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" 
+             style="background-color: #007bff; color: white; padding: 15px 30px; 
+                    text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            Verify My Email Address ✅
+          </a>
         </div>
         
+        <p>Or copy and paste this link in your browser:</p>
+        <p style="word-break: break-all; color: #007bff; font-size: 14px;">${verificationUrl}</p>
+        
         <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #856404;"><strong>⏰ Important:</strong> This code expires in 5 minutes for security reasons.</p>
+          <p style="margin: 0; color: #856404;"><strong>⏰ Important:</strong> This link expires in 24 hours for security reasons.</p>
         </div>
         
         <p>If you didn't create an account with HerRaise Hub, please ignore this email.</p>
@@ -364,7 +369,7 @@ const sendVerificationEmail = async (email, userName, verificationCode) => {
       <hr style="margin: 30px 0;">
       <div style="text-align: center; color: #666; font-size: 12px;">
         <p>HerRaise Hub - Empowering Women in South Sudan</p>
-        <p>This verification code was requested for email: ${email}</p>
+        <p>This verification link was sent to: ${email}</p>
       </div>
     </div>
   `;

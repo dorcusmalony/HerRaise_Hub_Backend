@@ -196,6 +196,22 @@ const connectDB = async () => {
     console.warn(' Warning: Error handling Reports table:', reportFixErr && reportFixErr.message);
   }
 
+  // Migrate email verification from code to token
+  try {
+    const [userColumns] = await sequelize.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'Users'"
+    );
+    const columnNames = userColumns.map(c => c.column_name);
+    
+    if (columnNames.includes('emailVerificationCode') && !columnNames.includes('emailVerificationToken')) {
+      console.log(' Migrating email verification from code to token system...');
+      await sequelize.query('ALTER TABLE "Users" RENAME COLUMN "emailVerificationCode" TO "emailVerificationToken"');
+      console.log(' Email verification migration completed');
+    }
+  } catch (migrationErr) {
+    console.warn(' Warning: Email verification migration failed:', migrationErr && migrationErr.message);
+  }
+
   // Define models
   const User = sequelize.define('User', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -219,7 +235,7 @@ const connectDB = async () => {
     isVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
     verificationDate: DataTypes.DATE,
     emailVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
-    emailVerificationCode: DataTypes.STRING,
+    emailVerificationToken: DataTypes.STRING,
     emailVerificationExpires: DataTypes.DATE
   }, { timestamps: true });
 
