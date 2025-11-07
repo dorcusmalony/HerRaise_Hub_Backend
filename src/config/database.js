@@ -196,20 +196,20 @@ const connectDB = async () => {
     console.warn(' Warning: Error handling Reports table:', reportFixErr && reportFixErr.message);
   }
 
-  // Migrate email verification from code to token
+  // Remove old email verification code column
   try {
     const [userColumns] = await sequelize.query(
       "SELECT column_name FROM information_schema.columns WHERE table_name = 'Users'"
     );
     const columnNames = userColumns.map(c => c.column_name);
     
-    if (columnNames.includes('emailVerificationCode') && !columnNames.includes('emailVerificationToken')) {
-      console.log(' Migrating email verification from code to token system...');
-      await sequelize.query('ALTER TABLE "Users" RENAME COLUMN "emailVerificationCode" TO "emailVerificationToken"');
-      console.log(' Email verification migration completed');
+    if (columnNames.includes('emailVerificationCode')) {
+      console.log(' Removing old emailVerificationCode column...');
+      await sequelize.query('ALTER TABLE "Users" DROP COLUMN IF EXISTS "emailVerificationCode"');
+      console.log(' Old email verification column removed');
     }
   } catch (migrationErr) {
-    console.warn(' Warning: Email verification migration failed:', migrationErr && migrationErr.message);
+    console.warn(' Warning: Column removal failed:', migrationErr && migrationErr.message);
   }
 
   // Define models
