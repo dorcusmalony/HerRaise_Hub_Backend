@@ -19,11 +19,19 @@ exports.getDashboardData = async (req, res) => {
       limit: 5
     });
 
-    // Get user's clicked/liked opportunities
+    // Get user's clicked/liked opportunities (filter out old ones)
     let clickedOpportunities = [];
     try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
       clickedOpportunities = await OpportunityInteraction.findAll({
-        where: { userId },
+        where: { 
+          userId,
+          createdAt: {
+            [db.Sequelize.Op.gte]: thirtyDaysAgo
+          }
+        },
         include: [{
           model: Opportunity,
           attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description'],
