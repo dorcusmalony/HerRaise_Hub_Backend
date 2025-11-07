@@ -83,34 +83,34 @@ const sendWelcomeEmail = async (email, userName) => {
         <p>Congratulations! Your account has been successfully created on <strong>HerRaise Hub</strong> - the platform empowering women in South Sudan!</p>
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #ff0043; margin-top: 0;">🚀 Ready to get started?</h3>
+          <h3 style="color: #ff0043; margin-top: 0;"> Ready to get started?</h3>
           <p style="margin-bottom: 15px;">Click the button below to log in and access your personalized dashboard:</p>
           <div style="text-align: center;">
             <a href="${loginUrl}" 
                style="background-color: #ff0043; color: white; padding: 15px 30px; 
                       text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-              Log In to Your Dashboard 🔑
+              Log In to Your Dashboard 
             </a>
           </div>
         </div>
         
         <h3 style="color: #ff0043;">What awaits you in your dashboard:</h3>
         <ul style="line-height: 1.8;">
-          <li>🎓 <strong>Opportunities Hub:</strong> Discover scholarships, internships, and competitions tailored for you</li>
-          <li>💬 <strong>Community Forum:</strong> Connect, share experiences, and support other women</li>
-          <li>👩🏫 <strong>Mentorship Network:</strong> Find experienced mentors to guide your journey</li>
-          <li>📚 <strong>Learning Resources:</strong> Access educational materials and career development tools</li>
-          <li>🛡️ <strong>Safety & Support:</strong> Use our safety resources and confidential reporting tools</li>
-          <li>📊 <strong>Progress Tracking:</strong> Monitor your applications and achievements</li>
+          <li> <strong>Opportunities Hub:</strong> Discover scholarships, internships, and competitions tailored for you</li>
+          <li> <strong>Community Forum:</strong> Connect, share experiences, and support other women</li>
+          <li> <strong>Mentorship Network:</strong> Find experienced mentors to guide your journey</li>
+          <li> <strong>Learning Resources:</strong> Access educational materials and career development tools</li>
+          <li> <strong>Safety & Support:</strong> Use our safety resources and confidential reporting tools</li>
+          <li> <strong>Progress Tracking:</strong> Monitor your applications and achievements</li>
         </ul>
         
         <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #2d5a2d;"><strong>💡 Pro Tip:</strong> Complete your profile after logging in to get personalized opportunity recommendations!</p>
+          <p style="margin: 0; color: #2d5a2d;"><strong> Pro Tip:</strong> Complete your profile after logging in to get personalized opportunity recommendations!</p>
         </div>
         
         <p>If you have any questions or need assistance, our community is here to help. You can also reach out to our support team anytime.</p>
         
-        <p>Welcome to a community where we rise together! 💪</p>
+        <p>Welcome to a community where we rise together! </p>
         
         <p>Best regards,<br>
         <strong>The HerRaise Hub Team</strong></p>
@@ -130,7 +130,7 @@ const sendWelcomeEmail = async (email, userName) => {
 
   return await sendEmail({
     to: email,
-    subject: '🎉 Welcome to HerRaise Hub - Let\'s Empower Your Journey!',
+    subject: ' Welcome to HerRaise Hub - Let\'s Empower Your Journey!',
     html
   });
 };
@@ -143,34 +143,34 @@ const sendDeadlineReminder = async (email, firstName, opportunity) => {
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
       <div style="text-align: center; padding: 20px; background-color: #ff6b35; color: white;">
-        <h1>⏰ Deadline Reminder!</h1>
+        <h1> Deadline Reminder!</h1>
       </div>
       <div style="padding: 30px;">
-        <h2 style="color: #333;">Hi ${firstName}! 👋</h2>
+        <h2 style="color: #333;">Hi ${firstName}! </h2>
         <p>This is a friendly reminder about an opportunity you showed interest in:</p>
         
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff6b35;">
           <h3 style="color: #ff6b35; margin-top: 0;">${opportunity.title}</h3>
           <p><strong>Type:</strong> ${opportunity.type}</p>
           <p><strong>Organization:</strong> ${opportunity.organization || 'Not specified'}</p>
-          <p style="color: #d63384; font-weight: bold;">⚠️ <strong>Deadline:</strong> ${deadlineDate} (3 days left!)</p>
+          <p style="color: #d63384; font-weight: bold;"> <strong>Deadline:</strong> ${deadlineDate} (3 days left!)</p>
         </div>
         
-        <p>Don't miss out on this amazing opportunity! Make sure to submit your application before the deadline.</p>
+        <p>Don't miss out on this amazing opportunity! Make sure to submit your application before the deadlines.</p>
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="${opportunityUrl}" 
              style="background-color: #ff6b35; color: white; padding: 15px 30px; 
                     text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-            View Opportunity Details 🔗
+            View Opportunity Details 
           </a>
         </div>
         
         <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #2d5a2d;"><strong>💡 Quick Tip:</strong> Set aside time today to complete your application. Good luck!</p>
+          <p style="margin: 0; color: #2d5a2d;"><strong> Quick Tip:</strong> Set aside time today to complete your application. Good luck!</p>
         </div>
         
-        <p>We're rooting for you! 💪</p>
+        <p>We're rooting for you! </p>
         
         <p>Best regards,<br>
         <strong>The HerRaise Hub Team</strong></p>
@@ -185,7 +185,7 @@ const sendDeadlineReminder = async (email, firstName, opportunity) => {
 
   return await sendEmail({
     to: email,
-    subject: `⏰ Reminder: ${opportunity.title} deadline in 3 days!`,
+    subject: ` Reminder: ${opportunity.title} deadline in 3 days!`,
     html
   });
 };
@@ -198,10 +198,10 @@ const sendNewOpportunityEmail = async (user, opportunity) => {
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
       <div style="text-align: center; padding: 20px; background-color: #6A1B9A; color: white;">
-        <h1>🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)} Available!</h1>
+        <h1> New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)} Available!</h1>
       </div>
       <div style="padding: 30px;">
-        <h2 style="color: #333;">Hi ${user.name}! 👋</h2>
+        <h2 style="color: #333;">Hi ${user.name}! </h2>
         <p>Great news! A new ${opportunity.type} has just been posted on HerRaise Hub:</p>
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6A1B9A;">
@@ -209,7 +209,7 @@ const sendNewOpportunityEmail = async (user, opportunity) => {
           <p><strong>Type:</strong> ${opportunity.type}</p>
           <p><strong>Organization:</strong> ${opportunity.organization || 'Not specified'}</p>
           <p><strong>Location:</strong> ${opportunity.location || 'Not specified'}</p>
-          <p style="color: #d63384; font-weight: bold;">📅 <strong>Deadline:</strong> ${deadlineDate}</p>
+          <p style="color: #d63384; font-weight: bold;"> <strong>Deadline:</strong> ${deadlineDate}</p>
           <p><strong>Description:</strong></p>
           <p style="color: #666;">${opportunity.description.substring(0, 200)}...</p>
         </div>
@@ -220,15 +220,15 @@ const sendNewOpportunityEmail = async (user, opportunity) => {
           <a href="${opportunityUrl}" 
              style="background-color: #6A1B9A; color: white; padding: 15px 30px; 
                     text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-            View & Apply Now 🚀
+            View & Apply Now 
           </a>
         </div>
         
         <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #2d5a2d;"><strong>💡 Pro Tip:</strong> Apply early! Many opportunities are reviewed on a rolling basis.</p>
+          <p style="margin: 0; color: #2d5a2d;"><strong> Pro Tip:</strong> Apply early! Many opportunities are reviewed on a rolling basis.</p>
         </div>
         
-        <p>Best of luck with your application! We're here to support your journey. 💪</p>
+        <p>Best of luck with your application! We're here to support your journey. </p>
         
         <p>Best regards,<br>
         <strong>The HerRaise Hub Team</strong></p>
@@ -244,7 +244,7 @@ const sendNewOpportunityEmail = async (user, opportunity) => {
 
   return await sendEmail({
     to: user.email,
-    subject: `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}: ${opportunity.title}`,
+    subject: ` New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}: ${opportunity.title}`,
     html
   });
 };
@@ -261,7 +261,7 @@ const sendNewOpportunityEmailToAll = async (opportunity) => {
       attributes: ['id', 'name', 'email']
     });
 
-    console.log(`📧 Sending opportunity emails to ${users.length} users`);
+    console.log(` Sending opportunity emails to ${users.length} users`);
     
     // Send emails in batches to avoid overwhelming the email service
     const batchSize = 10;
@@ -282,7 +282,7 @@ const sendNewOpportunityEmailToAll = async (opportunity) => {
       }
     }
     
-    console.log(`✅ Opportunity email notifications sent successfully`);
+    console.log(`Opportunity email notifications sent successfully`);
   } catch (error) {
     console.error('Error sending opportunity emails to all users:', error);
   }
@@ -308,13 +308,13 @@ const sendWeeklyOpportunityDigest = async (email, firstName, opportunities) => {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2c3e50;">📚 Weekly Opportunities Digest</h2>
+        <h2 style="color: #2c3e50;"> Weekly Opportunities Digest</h2>
         <p>Hi ${firstName},</p>
         <p>Here are the current opportunities still open for applications:</p>
         ${opportunityList}
         <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #1976d2; margin: 0; text-align: center;">
-            💡 <strong>Tip:</strong> Don't wait until the last minute - start your applications early!
+             <strong>Tip:</strong> Don't wait until the last minute - start your applications early!
           </p>
         </div>
         <p style="color: #666; font-size: 14px;">Best regards,<br>HerRaise Hub Team</p>
@@ -338,17 +338,17 @@ const sendVerificationEmail = async (email, userName, verificationToken, userId)
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
       <div style="text-align: center; padding: 20px; background-color: #007bff; color: white;">
-        <h1>Verify Your Email 📧</h1>
+        <h1>Verify Your Email </h1>
       </div>
       <div style="padding: 30px;">
-        <h2 style="color: #333;">Hi ${userName}! 👋</h2>
+        <h2 style="color: #333;">Hi ${userName}! </h2>
         <p>Thank you for registering with HerRaise Hub! To complete your registration, please verify your email address by clicking the button below.</p>
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="${verificationUrl}" 
              style="background-color: #007bff; color: white; padding: 15px 30px; 
                     text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-            Verify My Email Address ✅
+            Verify My Email Address 
           </a>
         </div>
         
@@ -356,12 +356,12 @@ const sendVerificationEmail = async (email, userName, verificationToken, userId)
         <p style="word-break: break-all; color: #007bff; font-size: 14px;">${verificationUrl}</p>
         
         <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; color: #856404;"><strong>⏰ Important:</strong> This link expires in 24 hours for security reasons.</p>
+          <p style="margin: 0; color: #856404;"><strong> Important:</strong> This link expires in 24 hours for security reasons.</p>
         </div>
         
         <p>If you didn't create an account with HerRaise Hub, please ignore this email.</p>
         
-        <p>Welcome to our community! 💪</p>
+        <p>Welcome to our community! </p>
         
         <p>Best regards,<br>
         <strong>The HerRaise Hub Team</strong></p>
