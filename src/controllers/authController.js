@@ -360,6 +360,8 @@ exports.login = async (req, res) => {
         email: user.email
       });
     }
+    
+
 
     const token = generateToken(user.id);
 
