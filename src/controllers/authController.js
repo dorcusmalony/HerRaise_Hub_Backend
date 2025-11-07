@@ -211,11 +211,11 @@ exports.register = async (req, res) => {
       } : {})
     };
 
-    // Generate 6-digit verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    // Generate secure verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     
-    userData.emailVerificationCode = verificationCode;
+    userData.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
     userData.emailVerificationExpires = verificationExpires;
     userData.emailVerified = false;
     
@@ -246,7 +246,7 @@ exports.register = async (req, res) => {
 
     // Send verification email
     try {
-      await sendVerificationEmail(user.email, user.name, verificationCode);
+      await sendVerificationEmail(user.email, user.name, verificationToken, user.id);
       console.log('Verification email sent to:', user.email);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError.message);
@@ -258,7 +258,7 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration initiated. Please check your email for verification code.',
+      message: 'Registration successful. Please check your email to verify your account.',
       email: user.email,
       requiresVerification: true
     });
@@ -640,27 +640,35 @@ function getPasswordStrength(password) {
   return 'very-strong';
 }
 
-// @desc    Verify email with 6-digit code
-// @route   POST /api/auth/verify-email
+// @desc    Verify email with token
+// @route   GET /api/auth/verify/:token/:id
 // @access  Public
 exports.verifyEmail = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { token, id } = req.params;
     
-    if (!email || !code) {
+    if (!token || !id) {
       return res.status(400).json({
         success: false,
-        message: 'Email and verification code are required'
+        message: 'Invalid verification link'
       });
     }
     
     const User = await getUserModel();
-    const user = await User.findOne({ where: { email } });
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await User.findOne({
+      where: {
+        id,
+        emailVerificationToken: hashedToken,
+        emailVerificationExpires: { [Op.gt]: Date.now() }
+      }
+    });
     
     if (!user) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: 'User not found'
+        message: 'Invalid or expired verification link'
       });
     }
     
@@ -671,23 +679,9 @@ exports.verifyEmail = async (req, res) => {
       });
     }
     
-    if (!user.emailVerificationCode || user.emailVerificationCode !== code) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid verification code'
-      });
-    }
-    
-    if (new Date() > user.emailVerificationExpires) {
-      return res.status(400).json({
-        success: false,
-        message: 'Verification code has expired'
-      });
-    }
-    
     // Verify email and clear verification fields
     user.emailVerified = true;
-    user.emailVerificationCode = null;
+    user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
     await user.save();
     
@@ -698,13 +692,9 @@ exports.verifyEmail = async (req, res) => {
       console.error('Failed to send welcome email:', emailError.message);
     }
     
-    const token = generateToken(user.id);
-    
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully',
-      token,
-      user: formatUserForResponse(user)
+      message: 'Email verified successfully! You can now log in.'
     });
   } catch (error) {
     console.error('Email verification error:', error);
@@ -715,7 +705,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-// @desc    Resend verification code
+// @desc    Resend verification email
 // @route   POST /api/auth/resend-verification
 // @access  Public
 exports.resendVerification = async (req, res) => {
@@ -746,17 +736,17 @@ exports.resendVerification = async (req, res) => {
       });
     }
     
-    // Generate new verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     
-    user.emailVerificationCode = verificationCode;
+    user.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
     user.emailVerificationExpires = verificationExpires;
     await user.save();
     
     // Send verification email
     try {
-      await sendVerificationEmail(user.email, user.name, verificationCode);
+      await sendVerificationEmail(user.email, user.name, verificationToken, user.id);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError.message);
       return res.status(500).json({
@@ -767,7 +757,7 @@ exports.resendVerification = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Verification code sent successfully'
+      message: 'Verification email sent successfully'
     });
   } catch (error) {
     console.error('Resend verification error:', error);
