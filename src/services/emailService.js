@@ -282,7 +282,7 @@ const sendNewOpportunityEmailToAll = async (opportunity) => {
       }
     }
     
-    console.log(`Opportunity email notifications sent successfully`);
+    console.log('Opportunity email notifications sent successfully');
   } catch (error) {
     console.error('Error sending opportunity emails to all users:', error);
   }
