@@ -46,7 +46,9 @@ const DEFAULT_FRONTENDS = [
   'https://her-raise-hub.vercel.app',
   'http://localhost:5173',
   'https://her-raise-qywpgby4w-dorcus-projects-926b115e.vercel.app',
-  'https://her-raise-pyaoi58m4-dorcus-projects-926b115e.vercel.app', // ADD THIS LINE
+  'https://her-raise-pyaoi58m4-dorcus-projects-926b115e.vercel.app',
+  'http://localhost:10000',
+  'https://herraise-hub-backend.onrender.com',
 ];
 
 const envOrigins = (process.env.FRONTEND_URLS || '')
@@ -63,6 +65,9 @@ const corsOptions = {
 
     // allow localhost
     if (origin && origin.includes('localhost')) return callback(null, true);
+
+    // allow render.com domains (for admin access)
+    if (origin && origin.includes('.onrender.com')) return callback(null, true);
 
     // allow exact-origin matches
     if (allowedOrigins.includes(origin)) return callback(null, true);
