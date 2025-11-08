@@ -51,14 +51,20 @@ router.get('/login', (req, res) => {
             const response = await fetch('/api/admin/auth/login', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password })
+              body: JSON.stringify({ email, password }),
+              redirect: 'manual'
             });
             
-            const data = await response.json();
-            
-            if (data.success) {
-              window.location.href = '/api/admin?token=' + data.token;
+            if (response.status === 302) {
+              // Login successful, follow the redirect
+              const location = response.headers.get('Location');
+              if (location) {
+                window.location.href = location;
+              } else {
+                window.location.href = '/api/admin';
+              }
             } else {
+              const data = await response.json();
               document.getElementById('error').textContent = data.message || 'Login failed';
             }
           } catch (error) {
