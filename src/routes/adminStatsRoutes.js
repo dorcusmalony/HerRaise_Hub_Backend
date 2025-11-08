@@ -101,6 +101,16 @@ router.get('/', adminAuth, (req, res) => {
           </div>
         </div>
         
+        <div id="reportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #dc3545;">📋 Report Details</h3>
+            <div id="reportDetails"></div>
+            <div style="text-align: right; margin-top: 20px;">
+              <button onclick="hideReportModal()" style="background: #666; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+            </div>
+          </div>
+        </div>
+        
         <div id="opportunityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
           <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 500px; max-height: 80vh; overflow-y: auto;">
             <h3 id="modalTitle" style="margin-top: 0; color: #6A1B9A;">Add New Opportunity</h3>
@@ -360,6 +370,7 @@ router.get('/', adminAuth, (req, res) => {
                           <span style="color: #888; font-size: 12px;">Submitted: \${new Date(report.createdAt).toLocaleDateString()}</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 5px;">
+                          <button onclick="viewReport('\${report.id}')" style="background: #007bff; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">View Full Report</button>
                           <button onclick="resolveReport('\${report.id}')" style="background: #28a745; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Mark Resolved</button>
                           <button onclick="deleteReport('\${report.id}')" style="background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Delete</button>
                         </div>
@@ -533,10 +544,55 @@ router.get('/', adminAuth, (req, res) => {
           }
         }
         
+        async function viewReport(id) {
+          try {
+            const response = await makeAuthRequest('/api/admin/reports/' + id);
+            const data = await response.json();
+            
+            if (data.success && data.report) {
+              const report = data.report;
+              const statusColor = report.status === 'resolved' ? '#28a745' : '#dc3545';
+              
+              document.getElementById('reportDetails').innerHTML = 
+                '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
+                  '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">' +
+                    '<h4 style="margin: 0; color: #495057;">👤 Reporter Information</h4>' +
+                    '<span style="background: ' + statusColor + '; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; text-transform: uppercase;">' + (report.status || 'pending') + '</span>' +
+                  '</div>' +
+                  '<p><strong>Name:</strong> ' + (report.name || 'Anonymous') + '</p>' +
+                  '<p><strong>Email:</strong> ' + (report.email || 'Not provided') + '</p>' +
+                  '<p><strong>Date Submitted:</strong> ' + new Date(report.createdAt).toLocaleDateString() + '</p>' +
+                '</div>' +
+                '<div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">' +
+                  '<h4 style="margin-top: 0; color: #856404;">📋 Subject</h4>' +
+                  '<p style="margin: 0; font-weight: bold;">' + (report.subject || 'No subject provided') + '</p>' +
+                '</div>' +
+                '<div style="background: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545;">' +
+                  '<h4 style="margin-top: 0; color: #721c24;">📄 Full Message</h4>' +
+                  '<div style="background: white; padding: 15px; border-radius: 4px; border: 1px solid #f5c6cb; white-space: pre-wrap; line-height: 1.6;">' + (report.message || 'No message provided') + '</div>' +
+                '</div>';
+              document.getElementById('reportModal').style.display = 'block';
+            } else {
+              alert('Error loading report details');
+            }
+          } catch (error) {
+            alert('Failed to load report: ' + error.message);
+          }
+        }
+        
+        function hideReportModal() {
+          document.getElementById('reportModal').style.display = 'none';
+        }
+        
         document.addEventListener('click', function(event) {
-          const modal = document.getElementById('opportunityModal');
-          if (event.target === modal) {
+          const opportunityModal = document.getElementById('opportunityModal');
+          const reportModal = document.getElementById('reportModal');
+          
+          if (event.target === opportunityModal) {
             hideOpportunityModal();
+          }
+          if (event.target === reportModal) {
+            hideReportModal();
           }
         });
       </script>
@@ -731,6 +787,24 @@ router.get('/reports', adminAuth, async (req, res) => {
     res.json({ success: true, reports });
   } catch (error) {
     console.error('Admin reports error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @desc    Get single report for admin
+// @route   GET /api/admin/reports/:id
+// @access  Private (Admin only)
+router.get('/reports/:id', adminAuth, async (req, res) => {
+  try {
+    const report = await models.Report.findByPk(req.params.id);
+    
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    res.json({ success: true, report });
+  } catch (error) {
+    console.error('Get report error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

@@ -9,7 +9,7 @@ exports.adminLogin = async (req, res) => {
     console.log('Admin login attempt:', email);
     
     // Check if it's the admin credentials
-    if (email === 'herraisehub@gmail.com' && password === 'mosesalier@2023') {
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
       // Create admin user if doesn't exist
       const User = db.models.User;
       let user = await User.findOne({ where: { email } });
