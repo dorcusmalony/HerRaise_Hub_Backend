@@ -134,6 +134,33 @@ router.get('/opportunities-sidebar', protect, async (req, res) => {
   }
 });
 
+// Auto-track opportunity when clicked (replaces old dashboard tracking)
+router.post('/track/:opportunityId', protect, async (req, res) => {
+  try {
+    const { opportunityId } = req.params;
+    const userId = req.user.id;
+
+    const opportunity = await models.Opportunity.findByPk(opportunityId);
+    if (!opportunity) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found' });
+    }
+
+    const [application] = await models.OpportunityApplication.findOrCreate({
+      where: { userId, opportunityId },
+      defaults: { status: 'pending' }
+    });
+
+    res.json({
+      success: true,
+      message: 'Opportunity added to sidebar',
+      status: application.status
+    });
+  } catch (error) {
+    console.error('Track opportunity error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get single opportunity with full details and status
 router.get('/opportunity/:id', protect, async (req, res) => {
   try {
