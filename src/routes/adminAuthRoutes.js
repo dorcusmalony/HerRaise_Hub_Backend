@@ -55,14 +55,9 @@ router.get('/login', (req, res) => {
               redirect: 'manual'
             });
             
-            if (response.status === 302) {
-              // Login successful, follow the redirect
-              const location = response.headers.get('Location');
-              if (location) {
-                window.location.href = location;
-              } else {
-                window.location.href = '/api/admin';
-              }
+            if (response.status === 302 || response.redirected) {
+              // Login successful, redirect to admin dashboard
+              window.location.href = '/api/admin';
             } else {
               const data = await response.json();
               document.getElementById('error').textContent = data.message || 'Login failed';

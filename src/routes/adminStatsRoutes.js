@@ -781,10 +781,32 @@ router.get('/reports', adminAuth, async (req, res) => {
   try {
     const reports = await models.Report.findAll({
       order: [['createdAt', 'DESC']],
-      limit: 100
+      limit: 100,
+      include: [
+        { model: models.User, as: 'reporter', attributes: ['id', 'name', 'email'], required: false }
+      ]
     });
 
-    res.json({ success: true, reports });
+    console.log('Raw reports from DB:', JSON.stringify(reports, null, 2));
+
+    // Transform data to match expected format
+    const transformedReports = reports.map(report => {
+      const reportData = report.get({ plain: true });
+      console.log('Individual report data:', reportData);
+      
+      return {
+        id: report.id,
+        name: report.reporter ? report.reporter.name : 'Anonymous',
+        email: report.reporter ? report.reporter.email : 'Not provided',
+        subject: report.type || 'General Report',
+        message: report.description || 'No message provided',
+        status: report.status || 'pending',
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt
+      };
+    });
+
+    res.json({ success: true, reports: transformedReports });
   } catch (error) {
     console.error('Admin reports error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -796,13 +818,29 @@ router.get('/reports', adminAuth, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/reports/:id', adminAuth, async (req, res) => {
   try {
-    const report = await models.Report.findByPk(req.params.id);
+    const report = await models.Report.findByPk(req.params.id, {
+      include: [
+        { model: models.User, as: 'reporter', attributes: ['id', 'name', 'email'] }
+      ]
+    });
     
     if (!report) {
       return res.status(404).json({ success: false, message: 'Report not found' });
     }
 
-    res.json({ success: true, report });
+    // Transform data to match expected format
+    const transformedReport = {
+      id: report.id,
+      name: report.reporter ? report.reporter.name : 'Anonymous',
+      email: report.reporter ? report.reporter.email : 'Not provided',
+      subject: report.type || 'General Report',
+      message: report.description || 'No message provided',
+      status: report.status || 'pending',
+      createdAt: report.createdAt,
+      updatedAt: report.updatedAt
+    };
+
+    res.json({ success: true, report: transformedReport });
   } catch (error) {
     console.error('Get report error:', error);
     res.status(500).json({ success: false, message: error.message });
