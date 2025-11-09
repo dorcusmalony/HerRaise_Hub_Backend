@@ -521,6 +521,13 @@ const connectDB = async () => {
   Opportunity.hasMany(OpportunityInterest, { foreignKey: 'opportunityId' });
   OpportunityInterest.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
 
+  // Opportunity Application tracking
+  const OpportunityApplication = require('../models/OpportunityApplication')(sequelize);
+  User.hasMany(OpportunityApplication, { foreignKey: 'userId' });
+  OpportunityApplication.belongsTo(User, { foreignKey: 'userId' });
+  Opportunity.hasMany(OpportunityApplication, { foreignKey: 'opportunityId' });
+  OpportunityApplication.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
+
   // Exported models
   exportedModels = {
     User,
@@ -539,7 +546,8 @@ const connectDB = async () => {
     UserApplication,
     PushSubscription,
     OpportunityInteraction,
-    OpportunityInterest
+    OpportunityInterest,
+    OpportunityApplication
   };
 
   // Sync models: non-Report first, then recreate Report only if forced
