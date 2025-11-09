@@ -7,6 +7,10 @@ exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
     console.log('Admin login attempt:', email);
+    console.log('Environment check:', {
+      ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ? 'SET' : 'NOT SET'
+    });
     
     // Check if it's the admin credentials
     if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
