@@ -533,6 +533,15 @@ const connectDB = async () => {
   User.hasMany(ShareZone, { foreignKey: 'author' });
   ShareZone.belongsTo(User, { as: 'authorData', foreignKey: 'author' });
 
+  // ShareZone Comment model
+  const ShareZoneComment = require('../models/ShareZoneComment')(sequelize);
+  User.hasMany(ShareZoneComment, { foreignKey: 'author' });
+  ShareZoneComment.belongsTo(User, { as: 'authorData', foreignKey: 'author' });
+  ShareZone.hasMany(ShareZoneComment, { foreignKey: 'post' });
+  ShareZoneComment.belongsTo(ShareZone, { as: 'postData', foreignKey: 'post' });
+  ShareZoneComment.hasMany(ShareZoneComment, { as: 'replies', foreignKey: 'parentCommentId' });
+  ShareZoneComment.belongsTo(ShareZoneComment, { as: 'parent', foreignKey: 'parentCommentId' });
+
   // Exported models
   exportedModels = {
     User,
@@ -553,7 +562,8 @@ const connectDB = async () => {
     OpportunityInteraction,
     OpportunityInterest,
     OpportunityApplication,
-    ShareZone
+    ShareZone,
+    ShareZoneComment
   };
 
   // Sync models: non-Report first, then recreate Report only if forced
