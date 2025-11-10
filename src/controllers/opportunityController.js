@@ -326,6 +326,19 @@ exports.applyToOpportunity = async (req, res) => {
       }
     }
 
+    // Add to sidebar tracking system
+    const { OpportunityApplication } = db.models;
+    if (OpportunityApplication) {
+      try {
+        await OpportunityApplication.findOrCreate({
+          where: { userId: req.user.id, opportunityId: req.params.id },
+          defaults: { status: 'pending' }
+        });
+      } catch (sidebarError) {
+        // Continue without failing
+      }
+    }
+
     // Update opportunity applicants list
     if (!opportunity.applicants || !opportunity.applicants.includes(req.user.id)) {
       opportunity.applicants = opportunity.applicants || [];
