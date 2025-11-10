@@ -162,14 +162,19 @@ router.post('/track/:opportunityId', protect, async (req, res) => {
 // Get clicked opportunities (for frontend compatibility)
 router.get('/clicked-opportunities', protect, async (req, res) => {
   try {
+    console.log('Fetching clicked opportunities for user:', req.user.id);
+    
     const applications = await models.OpportunityApplication.findAll({
       where: { userId: req.user.id },
       include: [{
         model: models.Opportunity,
-        attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description']
+        attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description'],
+        required: false
       }],
       order: [['createdAt', 'DESC']]
     });
+
+    console.log('Found applications:', applications.length);
 
     const clickedOpportunities = applications.map(app => ({
       id: app.id,
@@ -183,6 +188,7 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
       clickedOpportunities
     });
   } catch (error) {
+    console.error('Clicked opportunities error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
