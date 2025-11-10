@@ -227,6 +227,71 @@ router.post('/complete-application', protect, async (req, res) => {
   }
 });
 
+// Check for pending opportunities on login
+router.get('/pending-check', protect, async (req, res) => {
+  try {
+    const pendingApplications = await models.OpportunityApplication.findAll({
+      where: { 
+        userId: req.user.id,
+        status: 'pending'
+      },
+      include: [{
+        model: models.Opportunity,
+        attributes: ['id', 'title', 'type', 'organization']
+      }]
+    });
+
+    res.json({
+      success: true,
+      hasPending: pendingApplications.length > 0,
+      count: pendingApplications.length,
+      opportunities: pendingApplications.map(app => ({
+        id: app.id,
+        opportunityId: app.opportunityId,
+        title: app.Opportunity.title,
+        type: app.Opportunity.type,
+        organization: app.Opportunity.organization
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Bulk update pending opportunities to completed
+router.post('/complete-pending', protect, async (req, res) => {
+  try {
+    const { completed } = req.body; // true/false from user answer
+    
+    if (completed) {
+      await models.OpportunityApplication.update(
+        { 
+          status: 'completed',
+          completedAt: new Date()
+        },
+        { 
+          where: { 
+            userId: req.user.id,
+            status: 'pending'
+          }
+        }
+      );
+      
+      res.json({
+        success: true,
+        message: 'All pending opportunities marked as completed'
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Opportunities remain pending'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get single opportunity with full details and status
 router.get('/opportunity/:id', protect, async (req, res) => {
   try {
