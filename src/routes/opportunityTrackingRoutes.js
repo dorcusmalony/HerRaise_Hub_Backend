@@ -161,6 +161,67 @@ router.post('/track/:opportunityId', protect, async (req, res) => {
   }
 });
 
+// Get clicked opportunities (for frontend compatibility)
+router.get('/clicked-opportunities', protect, async (req, res) => {
+  try {
+    const applications = await models.OpportunityApplication.findAll({
+      where: { userId: req.user.id },
+      include: [{
+        model: models.Opportunity,
+        attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const clickedOpportunities = applications.map(app => ({
+      id: app.id,
+      opportunityId: app.opportunityId,
+      opportunity: app.Opportunity,
+      createdAt: app.createdAt
+    }));
+
+    res.json({
+      success: true,
+      clickedOpportunities
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Complete application (for frontend compatibility)
+router.post('/complete-application', protect, async (req, res) => {
+  try {
+    const { opportunityId, completed } = req.body;
+    const userId = req.user.id;
+
+    let application = await models.OpportunityApplication.findOne({
+      where: { userId, opportunityId }
+    });
+
+    if (!application) {
+      application = await models.OpportunityApplication.create({
+        userId,
+        opportunityId,
+        status: completed ? 'completed' : 'pending',
+        completedAt: completed ? new Date() : null
+      });
+    } else {
+      await application.update({
+        status: completed ? 'completed' : 'pending',
+        completedAt: completed ? new Date() : null
+      });
+    }
+
+    res.json({
+      success: true,
+      message: completed ? 'Application marked as completed' : 'Application marked as pending'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get single opportunity with full details and status
 router.get('/opportunity/:id', protect, async (req, res) => {
   try {
