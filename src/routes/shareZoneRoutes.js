@@ -15,15 +15,38 @@ const upload = multer({
   }
 });
 
-// GET /api/sharezone - Fetch all ShareZone posts
+// GET /api/sharezone - Fetch all ShareZone posts with comments
 router.get('/', async (req, res) => {
   try {
     const posts = await models.ShareZone.findAll({
-      include: [{
-        model: models.User,
-        as: 'authorData',
-        attributes: ['id', 'name', 'profilePicture']
-      }],
+      include: [
+        {
+          model: models.User,
+          as: 'authorData',
+          attributes: ['id', 'name', 'profilePicture']
+        },
+        {
+          model: models.ShareZoneComment,
+          where: { parentCommentId: null },
+          required: false,
+          include: [
+            {
+              model: models.User,
+              as: 'authorData',
+              attributes: ['id', 'name', 'profilePicture']
+            },
+            {
+              model: models.ShareZoneComment,
+              as: 'replies',
+              include: [{
+                model: models.User,
+                as: 'authorData',
+                attributes: ['id', 'name', 'profilePicture']
+              }]
+            }
+          ]
+        }
+      ],
       order: [['createdAt', 'DESC']]
     });
 
@@ -35,10 +58,64 @@ router.get('/', async (req, res) => {
       category: post.category,
       fileUrl: post.fileUrl,
       author: post.authorData,
-      createdAt: post.createdAt
+      createdAt: post.createdAt,
+      ShareZoneComments: post.ShareZoneComments || []
     }));
 
     res.json({ posts: transformedPosts });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/sharezone/:id - Get single ShareZone post with comments
+router.get('/:id', async (req, res) => {
+  try {
+    const post = await models.ShareZone.findByPk(req.params.id, {
+      include: [
+        {
+          model: models.User,
+          as: 'authorData',
+          attributes: ['id', 'name', 'profilePicture']
+        },
+        {
+          model: models.ShareZoneComment,
+          where: { parentCommentId: null },
+          required: false,
+          include: [
+            {
+              model: models.User,
+              as: 'authorData',
+              attributes: ['id', 'name', 'profilePicture']
+            },
+            {
+              model: models.ShareZoneComment,
+              as: 'replies',
+              include: [{
+                model: models.User,
+                as: 'authorData',
+                attributes: ['id', 'name', 'profilePicture']
+              }]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.json({
+      _id: post._id,
+      title: post.title,
+      content: post.content,
+      category: post.category,
+      fileUrl: post.fileUrl,
+      author: post.authorData,
+      createdAt: post.createdAt,
+      ShareZoneComments: post.ShareZoneComments || []
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -88,6 +165,133 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       fileUrl: postWithAuthor.fileUrl,
       author: postWithAuthor.authorData,
       createdAt: postWithAuthor.createdAt
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/sharezone/:id/comments - Add comment to ShareZone post
+router.post('/:id/comments', protect, async (req, res) => {
+  try {
+    const { content, parentCommentId } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Comment content is required' });
+    }
+
+    const post = await models.ShareZone.findByPk(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = await models.ShareZoneComment.create({
+      content,
+      post: req.params.id,
+      author: req.user.id,
+      parentCommentId: parentCommentId || null,
+      likes: []
+    });
+
+    const commentWithAuthor = await models.ShareZoneComment.findByPk(comment._id, {
+      include: [{
+        model: models.User,
+        as: 'authorData',
+        attributes: ['id', 'name', 'profilePicture']
+      }]
+    });
+
+    res.status(201).json(commentWithAuthor);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/sharezone/comments/:id - Update comment
+router.put('/comments/:id', protect, async (req, res) => {
+  try {
+    const { content } = req.body;
+    
+    const comment = await models.ShareZoneComment.findByPk(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    if (comment.author !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to update this comment' });
+    }
+
+    if (content) {
+      comment.content = content;
+      await comment.save();
+    }
+
+    const updatedComment = await models.ShareZoneComment.findByPk(comment._id, {
+      include: [{
+        model: models.User,
+        as: 'authorData',
+        attributes: ['id', 'name', 'profilePicture']
+      }]
+    });
+
+    res.json(updatedComment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/sharezone/comments/:id - Delete comment and replies
+router.delete('/comments/:id', protect, async (req, res) => {
+  try {
+    const comment = await models.ShareZoneComment.findByPk(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    if (comment.author !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
+    }
+
+    // Delete all replies first (cascade delete)
+    await models.ShareZoneComment.destroy({
+      where: { parentCommentId: req.params.id }
+    });
+
+    // Delete the comment itself
+    await comment.destroy();
+
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/sharezone/comments/:id/like - Toggle like on comment
+router.post('/comments/:id/like', protect, async (req, res) => {
+  try {
+    const comment = await models.ShareZoneComment.findByPk(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const likes = comment.likes || [];
+    const userLikeIndex = likes.findIndex(like => like.userId === req.user.id);
+
+    if (userLikeIndex > -1) {
+      // Unlike
+      likes.splice(userLikeIndex, 1);
+    } else {
+      // Like
+      likes.push({ userId: req.user.id, createdAt: new Date() });
+    }
+
+    comment.likes = likes;
+    await comment.save();
+
+    res.json({
+      liked: userLikeIndex === -1,
+      likesCount: likes.length,
+      likes: likes
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
