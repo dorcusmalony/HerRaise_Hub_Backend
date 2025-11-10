@@ -21,7 +21,7 @@ router.post('/track-opportunity/:opportunityId', protect, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Opportunity added to sidebar',
+      message: 'Opportunity added to opportunity sidebar',
       liked: true,
       created: true
     });
