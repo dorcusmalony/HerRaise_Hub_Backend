@@ -15,11 +15,6 @@ const {
   createFeedbackPost,
   getFeedbackPosts
 } = require('../controllers/forumController');
-const {
-  uploadMultiple,
-  handleMultipleUpload
-} = require('../controllers/uploadController');
-
 // Post routes
 router.get('/posts', getPosts);
 router.post('/posts', protect, createPost);
@@ -37,8 +32,5 @@ router.post('/posts/:id/comments', protect, addComment);
 router.put('/comments/:id', protect, updateComment);
 router.delete('/comments/:id', protect, deleteComment);
 router.post('/comments/:id/like', protect, toggleCommentLike);
-
-// File upload routes
-router.post('/upload', protect, uploadMultiple, handleMultipleUpload);
 
 module.exports = router;

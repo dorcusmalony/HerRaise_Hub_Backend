@@ -385,7 +385,7 @@ const connectDB = async () => {
     title: { type: DataTypes.STRING, allowNull: false },
     content: { type: DataTypes.TEXT, allowNull: false },
     type: { 
-      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback', 'essay', 'video'), 
+      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback', 'essay', 'video', 'resume', 'cover_letter'), 
       defaultValue: 'discussion' 
     },
     tags: { type: DataTypes.JSONB, defaultValue: [] },
@@ -528,6 +528,11 @@ const connectDB = async () => {
   Opportunity.hasMany(OpportunityApplication, { foreignKey: 'opportunityId' });
   OpportunityApplication.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
 
+  // ShareZone model
+  const ShareZone = require('../models/ShareZone')(sequelize);
+  User.hasMany(ShareZone, { foreignKey: 'author' });
+  ShareZone.belongsTo(User, { as: 'authorData', foreignKey: 'author' });
+
   // Exported models
   exportedModels = {
     User,
@@ -547,7 +552,8 @@ const connectDB = async () => {
     PushSubscription,
     OpportunityInteraction,
     OpportunityInterest,
-    OpportunityApplication
+    OpportunityApplication,
+    ShareZone
   };
 
   // Sync models: non-Report first, then recreate Report only if forced
