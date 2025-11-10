@@ -180,6 +180,8 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
       id: app.id,
       opportunityId: app.opportunityId,
       opportunity: app.Opportunity,
+      status: app.status,
+      completedAt: app.completedAt,
       createdAt: app.createdAt
     }));
 
