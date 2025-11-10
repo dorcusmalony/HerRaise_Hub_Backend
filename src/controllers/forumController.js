@@ -29,8 +29,10 @@ exports.getPosts = async (req, res) => {
     const { filter = 'all', sort = 'recent', limit = 10 } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const where = {};
-    if (filter !== 'all') {
+    const where = {
+      type: ['discussion', 'question', 'announcement'] // Only show forum discussions
+    };
+    if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
       where.type = filter;
     }
 
