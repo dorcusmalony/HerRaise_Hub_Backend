@@ -101,27 +101,25 @@ router.post('/complete/:opportunityId', protect, async (req, res) => {
 // Get opportunities for side list view with application status
 router.get('/opportunities-sidebar', protect, async (req, res) => {
   try {
-    const opportunities = await models.Opportunity.findAll({
-      where: { isActive: true },
+    const applications = await models.OpportunityApplication.findAll({
+      where: { userId: req.user.id },
       include: [{
-        model: models.OpportunityApplication,
-        where: { userId: req.user.id },
-        required: false,
-        attributes: ['status', 'completedAt']
+        model: models.Opportunity,
+        where: { isActive: true },
+        attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline']
       }],
-      attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'createdAt'],
       order: [['createdAt', 'DESC']]
     });
 
-    // Transform for sidebar display
-    const sidebarOpportunities = opportunities.map(opp => ({
-      id: opp.id,
-      title: opp.title,
-      type: opp.type,
-      organization: opp.organization,
-      deadline: opp.applicationDeadline,
-      status: opp.OpportunityApplications?.[0]?.status || 'not_applied',
-      completedAt: opp.OpportunityApplications?.[0]?.completedAt
+    // Transform for sidebar display - only show tracked opportunities
+    const sidebarOpportunities = applications.map(app => ({
+      id: app.Opportunity.id,
+      title: app.Opportunity.title,
+      type: app.Opportunity.type,
+      organization: app.Opportunity.organization,
+      deadline: app.Opportunity.applicationDeadline,
+      status: app.status,
+      completedAt: app.completedAt
     }));
 
     res.json({
