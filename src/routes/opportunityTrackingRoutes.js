@@ -185,6 +185,7 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
 
     res.json({
       success: true,
+      opportunities: clickedOpportunities,
       clickedOpportunities
     });
   } catch (error) {
