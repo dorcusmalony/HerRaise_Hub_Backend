@@ -14,7 +14,7 @@ router.post('/track-opportunity/:opportunityId', protect, async (req, res) => {
     const { opportunityId } = req.params;
     const userId = req.user.id;
 
-    const [application] = await models.OpportunityApplication.findOrCreate({
+    await models.OpportunityApplication.findOrCreate({
       where: { userId, opportunityId },
       defaults: { status: 'pending' }
     });

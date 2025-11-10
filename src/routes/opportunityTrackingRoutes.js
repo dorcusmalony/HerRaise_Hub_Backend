@@ -180,11 +180,14 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
       id: app.id,
       opportunityId: app.opportunityId,
       opportunity: app.Opportunity,
+      status: app.status,
+      completedAt: app.completedAt,
       createdAt: app.createdAt
     }));
 
     res.json({
       success: true,
+      opportunities: clickedOpportunities,
       clickedOpportunities
     });
   } catch (error) {
@@ -222,6 +225,134 @@ router.post('/complete-application', protect, async (req, res) => {
       message: completed ? 'Application marked as completed' : 'Application marked as pending'
     });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Check for pending opportunities on login and create reminder notifications
+router.get('/pending-check', protect, async (req, res) => {
+  try {
+    const pendingApplications = await models.OpportunityApplication.findAll({
+      where: { 
+        userId: req.user.id,
+        status: 'pending'
+      },
+      include: [{
+        model: models.Opportunity,
+        attributes: ['id', 'title', 'type', 'organization']
+      }]
+    });
+
+    // Create reminder notification if user has pending opportunities
+    if (pendingApplications.length > 0) {
+      const { Notification } = models;
+      
+      const count = pendingApplications.length;
+      const isPlural = count > 1;
+      
+      // Create notification reminder
+      await Notification.create({
+        userId: req.user.id,
+        type: 'deadline_reminder',
+        title: 'Pending Opportunities Reminder',
+        message: `You have ${count} pending ${isPlural ? 'opportunities' : 'opportunity'}. Don't forget to complete your ${isPlural ? 'applications' : 'application'}!`,
+        data: {
+          pendingCount: count,
+          opportunities: pendingApplications.map(app => app.Opportunity.title)
+        },
+        priority: 'normal'
+      });
+    }
+
+    res.json({
+      success: true,
+      hasPending: pendingApplications.length > 0,
+      count: pendingApplications.length,
+      message: pendingApplications.length > 0 
+        ? `You have ${pendingApplications.length} pending ${pendingApplications.length > 1 ? 'opportunities' : 'opportunity'} to complete!`
+        : 'No pending opportunities'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Bulk update pending opportunities to completed
+router.post('/complete-pending', protect, async (req, res) => {
+  try {
+    const { completed } = req.body; // true/false from user answer
+    
+    if (completed) {
+      await models.OpportunityApplication.update(
+        { 
+          status: 'completed',
+          completedAt: new Date()
+        },
+        { 
+          where: { 
+            userId: req.user.id,
+            status: 'pending'
+          }
+        }
+      );
+      
+      res.json({
+        success: true,
+        message: 'All pending opportunities marked as completed'
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Opportunities remain pending'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Answer completion question for specific opportunity
+router.post('/completion-question/:opportunityId', protect, async (req, res) => {
+  try {
+    const { opportunityId } = req.params;
+    const { completed } = req.body; // true for "yes", false for "no"
+    const userId = req.user.id;
+
+    const application = await models.OpportunityApplication.findOne({
+      where: { userId, opportunityId }
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found in your tracking list' });
+    }
+
+    if (completed) {
+      // User said "Yes" - mark as completed
+      await application.update({
+        status: 'completed',
+        completedAt: new Date()
+      });
+      
+      res.json({
+        success: true,
+        message: 'Opportunity marked as completed',
+        status: 'completed'
+      });
+    } else {
+      // User said "No" - keep as pending
+      await application.update({
+        status: 'pending',
+        completedAt: null
+      });
+      
+      res.json({
+        success: true,
+        message: 'Opportunity remains pending',
+        status: 'pending'
+      });
+    }
+  } catch (error) {
+    console.error('Completion question error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
