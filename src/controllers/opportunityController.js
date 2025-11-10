@@ -114,33 +114,33 @@ exports.createOpportunity = async (req, res) => {
 
     const opportunity = await Opportunity.create(opportunityData);
     
-    // Send all types of notifications to users
-    const { sendPushNotificationToAll } = require('../services/pushNotificationService');
-    const { sendNewOpportunityEmailToAll } = require('../services/emailService');
-    const NotificationService = require('../services/notificationService');
-    
-    // Database notification (for notification bell)
-    await NotificationService.notifyNewOpportunity(opportunity, req.user.id);
-    
-    // Push notification to all users
-    await sendPushNotificationToAll({
-      title: `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}!`,
-      body: `${opportunity.title} - Apply now before the deadline!`,
-      data: {
-        type: 'opportunity',
-        opportunityId: opportunity.id.toString(),
-        url: `/opportunities/${opportunity.id}`
+    // Only notify users who have liked/tracked opportunities
+    const { OpportunityApplication } = db.models;
+    if (OpportunityApplication) {
+      try {
+        // Get users who have liked opportunities (have tracking records)
+        const trackedUsers = await OpportunityApplication.findAll({
+          attributes: ['userId'],
+          group: ['userId']
+        });
+        
+        const userIds = trackedUsers.map(record => record.userId);
+        
+        if (userIds.length > 0) {
+          const NotificationService = require('../services/notificationService');
+          
+          // Send targeted notifications only to users who track opportunities
+          await NotificationService.notifyTargetedUsers(opportunity, userIds, req.user.id);
+          
+          console.log(`📢 Targeted notifications sent for new ${opportunity.type}: ${opportunity.title}`);
+          console.log(`  ✅ Notified ${userIds.length} users who track opportunities`);
+        } else {
+          console.log('📢 No users tracking opportunities yet - no notifications sent');
+        }
+      } catch (notificationError) {
+        console.error('Notification error:', notificationError.message);
       }
-    });
-    
-    // Email notification to all users
-    await sendNewOpportunityEmailToAll(opportunity);
-    
-    console.log(`📢 All notifications sent for new ${opportunity.type}: ${opportunity.title}`);
-    console.log('  ✅ Database notifications (bell)');
-    console.log('  ✅ WebSocket notifications');
-    console.log('  ✅ Push notifications');
-    console.log('  ✅ Email notifications');
+    }
 
     res.status(201).json({
       success: true,

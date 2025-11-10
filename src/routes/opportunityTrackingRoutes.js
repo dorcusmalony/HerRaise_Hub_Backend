@@ -227,7 +227,7 @@ router.post('/complete-application', protect, async (req, res) => {
   }
 });
 
-// Check for pending opportunities on login
+// Check for pending opportunities on login and create reminder notifications
 router.get('/pending-check', protect, async (req, res) => {
   try {
     const pendingApplications = await models.OpportunityApplication.findAll({
@@ -241,17 +241,34 @@ router.get('/pending-check', protect, async (req, res) => {
       }]
     });
 
+    // Create reminder notification if user has pending opportunities
+    if (pendingApplications.length > 0) {
+      const { Notification } = models;
+      
+      const count = pendingApplications.length;
+      const isPlural = count > 1;
+      
+      // Create notification reminder
+      await Notification.create({
+        userId: req.user.id,
+        type: 'deadline_reminder',
+        title: 'Pending Opportunities Reminder',
+        message: `You have ${count} pending ${isPlural ? 'opportunities' : 'opportunity'}. Don't forget to complete your ${isPlural ? 'applications' : 'application'}!`,
+        data: {
+          pendingCount: count,
+          opportunities: pendingApplications.map(app => app.Opportunity.title)
+        },
+        priority: 'normal'
+      });
+    }
+
     res.json({
       success: true,
       hasPending: pendingApplications.length > 0,
       count: pendingApplications.length,
-      opportunities: pendingApplications.map(app => ({
-        id: app.id,
-        opportunityId: app.opportunityId,
-        title: app.Opportunity.title,
-        type: app.Opportunity.type,
-        organization: app.Opportunity.organization
-      }))
+      message: pendingApplications.length > 0 
+        ? `You have ${pendingApplications.length} pending ${pendingApplications.length > 1 ? 'opportunities' : 'opportunity'} to complete!`
+        : 'No pending opportunities'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -288,6 +305,52 @@ router.post('/complete-pending', protect, async (req, res) => {
       });
     }
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Answer completion question for specific opportunity
+router.post('/completion-question/:opportunityId', protect, async (req, res) => {
+  try {
+    const { opportunityId } = req.params;
+    const { completed } = req.body; // true for "yes", false for "no"
+    const userId = req.user.id;
+
+    const application = await models.OpportunityApplication.findOne({
+      where: { userId, opportunityId }
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Opportunity not found in your tracking list' });
+    }
+
+    if (completed) {
+      // User said "Yes" - mark as completed
+      await application.update({
+        status: 'completed',
+        completedAt: new Date()
+      });
+      
+      res.json({
+        success: true,
+        message: 'Opportunity marked as completed',
+        status: 'completed'
+      });
+    } else {
+      // User said "No" - keep as pending
+      await application.update({
+        status: 'pending',
+        completedAt: null
+      });
+      
+      res.json({
+        success: true,
+        message: 'Opportunity remains pending',
+        status: 'pending'
+      });
+    }
+  } catch (error) {
+    console.error('Completion question error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
