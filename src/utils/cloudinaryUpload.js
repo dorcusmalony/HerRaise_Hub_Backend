@@ -9,20 +9,19 @@ const streamifier = require('streamifier');
  */
 const uploadToCloudinary = async (fileBuffer, folder = 'herraise') => {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Upload timeout after 2 minutes'));
+    }, 120000); // 2 minute timeout
+
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: folder,
         resource_type: 'auto',
-        quality: 'auto',
-        fetch_format: 'auto',
-        chunk_size: 6000000, // 6MB chunks for large files
-        eager: [
-          { width: 300, height: 300, crop: 'pad', audio_codec: 'none' },
-          { width: 160, height: 100, crop: 'crop', gravity: 'south', audio_codec: 'none' }
-        ],
-        eager_async: true
+        timeout: 120000, // 2 minutes
+        chunk_size: 6000000 // 6MB chunks
       },
       (error, result) => {
+        clearTimeout(timeout);
         if (error) {
           console.error('Cloudinary upload error:', error);
           reject(error);
