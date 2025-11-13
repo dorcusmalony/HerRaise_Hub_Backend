@@ -377,7 +377,9 @@ exports.login = async (req, res) => {
         where: {
           userId: user.id,
           isInterested: true,
-          applicationStatus: 'interested'
+          applicationStatus: {
+            [Op.in]: ['interested', 'in_progress']
+          }
         },
         include: [{
           model: Opportunity,
