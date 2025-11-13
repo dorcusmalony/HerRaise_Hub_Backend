@@ -137,8 +137,15 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
 
     let fileUrl = null;
     if (req.file) {
-      const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
-      fileUrl = result.secure_url;
+      try {
+        const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
+        fileUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error('File upload failed:', uploadError.message);
+        return res.status(400).json({ 
+          error: 'File upload failed. Please try a smaller file or try again later.' 
+        });
+      }
     }
 
     const post = await models.ShareZone.create({
@@ -195,8 +202,15 @@ router.put('/:id', protect, upload.single('file'), async (req, res) => {
     if (category) post.category = category;
 
     if (req.file) {
-      const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
-      post.fileUrl = result.secure_url;
+      try {
+        const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
+        post.fileUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error('File upload failed:', uploadError.message);
+        return res.status(400).json({ 
+          error: 'File upload failed. Please try a smaller file or try again later.' 
+        });
+      }
     }
 
     await post.save();
