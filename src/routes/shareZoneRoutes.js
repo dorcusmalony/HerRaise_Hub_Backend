@@ -130,7 +130,7 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    const validCategories = ['project', 'essay', 'resume', 'video', 'document', 'other'];
+    const validCategories = ['essays', 'projects', 'videos', 'resumes', 'cover-letters'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({ error: 'Invalid category' });
     }
@@ -185,7 +185,7 @@ router.put('/:id', protect, upload.single('file'), async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to update this post' });
     }
 
-    const validCategories = ['project', 'essay', 'resume', 'video', 'document', 'other'];
+    const validCategories = ['essays', 'projects', 'videos', 'resumes', 'cover-letters'];
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({ error: 'Invalid category' });
     }

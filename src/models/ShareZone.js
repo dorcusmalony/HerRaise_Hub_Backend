@@ -15,7 +15,7 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT 
     },
     category: { 
-      type: DataTypes.ENUM('project', 'essay', 'resume', 'video', 'document', 'other'), 
+      type: DataTypes.ENUM('essays', 'projects', 'videos', 'resumes', 'cover-letters'), 
       allowNull: false 
     },
     fileUrl: { 
