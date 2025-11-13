@@ -20,13 +20,108 @@ exports.getSupportedLanguages = (_req, res) => {
   });
 };
 
+// @desc    Get forum categories
+// @route   GET /api/forum/categories
+// @access  Public
+exports.getCategories = (_req, res) => {
+  res.status(200).json({
+    success: true,
+    categories: [
+      { id: 'personal-growth', name: 'Personal Growth & Learning' },
+      { id: 'mental-health', name: 'Mental Health & Wellbeing' },
+      { id: 'education-study', name: 'Education & Study Tips' },
+      { id: 'career-future', name: 'Career & Future Opportunities' }
+    ]
+  });
+};
+
+// @desc    Get posts by category
+// @route   GET /api/forum/categories/:category/posts
+// @access  Public
+exports.getPostsByCategory = async (req, res) => {
+  try {
+    const { ForumPost, User, ForumComment } = db.models;
+    const { category } = req.params;
+    const { sort = 'recent', limit = 10 } = req.query;
+    const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
+
+    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category'
+      });
+    }
+
+    let order = [['createdAt', 'DESC']];
+    if (sort === 'popular') {
+      order = [['views', 'DESC'], ['createdAt', 'DESC']];
+    }
+
+    const posts = await ForumPost.findAll({
+      where: {
+        category,
+        type: ['discussion', 'question', 'announcement']
+      },
+      order,
+      limit: parseInt(limit, 10) || 10,
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'name', 'profilePicture', 'role']
+        },
+        {
+          model: ForumComment,
+          where: { parentCommentId: null },
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'author',
+              attributes: ['id', 'name', 'profilePicture', 'role']
+            }
+          ],
+          order: [['createdAt', 'ASC']]
+        }
+      ]
+    });
+
+    const formattedPosts = posts.map(post => {
+      const postData = post.toJSON();
+      postData.title = getLocalizedContent(postData, 'title', lang);
+      postData.content = getLocalizedContent(postData, 'content', lang);
+      return {
+        ...postData,
+        likesCount: (postData.likes || []).length,
+        commentsCount: (postData.ForumComments || []).length,
+        viewsCount: postData.views || 0,
+        attachmentsCount: (postData.attachments || []).length
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      category,
+      count: formattedPosts.length,
+      posts: formattedPosts
+    });
+  } catch (error) {
+    console.error('Get posts by category error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Get forum posts
 // @route   GET /api/forum/posts
 // @access  Public
 exports.getPosts = async (req, res) => {
   try {
     const { ForumPost, User, ForumComment } = db.models;
-    const { filter = 'all', sort = 'recent', limit = 10 } = req.query;
+    const { filter = 'all', sort = 'recent', limit = 10, category } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
     const where = {
@@ -34,6 +129,9 @@ exports.getPosts = async (req, res) => {
     };
     if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
       where.type = filter;
+    }
+    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future'].includes(category)) {
+      where.category = category;
     }
 
     let order = [['createdAt', 'DESC']];
@@ -135,7 +233,15 @@ exports.getPosts = async (req, res) => {
 exports.createPost = async (req, res) => {
   try {
     const { ForumPost, User } = db.models;
-    const { title, content, type, tags, title_ar, content_ar, attachments } = req.body;
+    const { title, content, type, tags, title_ar, content_ar, attachments, category } = req.body;
+
+    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future'];
+    if (category && !validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category'
+      });
+    }
 
     const post = await ForumPost.create({
       title,
@@ -143,6 +249,7 @@ exports.createPost = async (req, res) => {
       title_ar: title_ar || null,
       content_ar: content_ar || null,
       type: type || 'discussion',
+      category: category || null,
       tags: Array.isArray(tags) ? tags : [],
       attachments: Array.isArray(attachments) ? attachments : [],
       authorId: req.user.id

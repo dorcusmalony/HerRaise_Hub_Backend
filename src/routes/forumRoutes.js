@@ -13,8 +13,14 @@ const {
   togglePostLike,
   toggleCommentLike,
   createFeedbackPost,
-  getFeedbackPosts
+  getFeedbackPosts,
+  getCategories,
+  getPostsByCategory
 } = require('../controllers/forumController');
+// Category routes
+router.get('/categories', getCategories);
+router.get('/categories/:category/posts', getPostsByCategory);
+
 // Post routes
 router.get('/posts', getPosts);
 router.post('/posts', protect, createPost);

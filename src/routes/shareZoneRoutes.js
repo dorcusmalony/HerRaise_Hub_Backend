@@ -171,6 +171,84 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
   }
 });
 
+// PUT /api/sharezone/:id - Update ShareZone post
+router.put('/:id', protect, upload.single('file'), async (req, res) => {
+  try {
+    const { title, content, category } = req.body;
+    
+    const post = await models.ShareZone.findByPk(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.author !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to update this post' });
+    }
+
+    const validCategories = ['project', 'essay', 'resume', 'video', 'document', 'other'];
+    if (category && !validCategories.includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    if (title) post.title = title;
+    if (content !== undefined) post.content = content;
+    if (category) post.category = category;
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
+      post.fileUrl = result.secure_url;
+    }
+
+    await post.save();
+
+    const updatedPost = await models.ShareZone.findByPk(post._id, {
+      include: [{
+        model: models.User,
+        as: 'authorData',
+        attributes: ['id', 'name', 'profilePicture']
+      }]
+    });
+
+    res.json({
+      _id: updatedPost._id,
+      title: updatedPost.title,
+      content: updatedPost.content,
+      category: updatedPost.category,
+      fileUrl: updatedPost.fileUrl,
+      author: updatedPost.authorData,
+      createdAt: updatedPost.createdAt
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/sharezone/:id - Delete ShareZone post
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const post = await models.ShareZone.findByPk(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.author !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to delete this post' });
+    }
+
+    // Delete all comments first
+    await models.ShareZoneComment.destroy({
+      where: { post: req.params.id }
+    });
+
+    // Delete the post
+    await post.destroy();
+
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /api/sharezone/:id/comments - Add comment to ShareZone post
 router.post('/:id/comments', protect, async (req, res) => {
   try {
