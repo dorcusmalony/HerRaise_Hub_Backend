@@ -9,7 +9,8 @@ const {
   applyToOpportunity,
   getMyApplications,
   getApplication,
-  updateApplicationStatus
+  updateApplicationStatus,
+  markOpportunityCompleted
 } = require('../controllers/opportunityController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -53,6 +54,9 @@ router.route('/:id')
 
 router.route('/:id/apply')
   .post(protect, applyToOpportunity);
+
+router.route('/:id/complete')
+  .post(protect, markOpportunityCompleted);
 
 // Application routes
 router.get('/my-applications', protect, getMyApplications);
