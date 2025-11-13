@@ -14,7 +14,13 @@ const uploadToCloudinary = async (fileBuffer, folder = 'herraise') => {
         folder: folder,
         resource_type: 'auto',
         quality: 'auto',
-        fetch_format: 'auto'
+        fetch_format: 'auto',
+        chunk_size: 6000000, // 6MB chunks for large files
+        eager: [
+          { width: 300, height: 300, crop: 'pad', audio_codec: 'none' },
+          { width: 160, height: 100, crop: 'crop', gravity: 'south', audio_codec: 'none' }
+        ],
+        eager_async: true
       },
       (error, result) => {
         if (error) {
