@@ -414,6 +414,16 @@ exports.login = async (req, res) => {
       console.log('Failed to fetch pending reminders:', reminderError.message);
     }
 
+    // Create notifications for pending opportunities
+    if (pendingReminders.length > 0) {
+      try {
+        const { createPendingOpportunityNotifications } = require('./notificationController');
+        await createPendingOpportunityNotifications(user.id, pendingReminders);
+      } catch (notificationError) {
+        console.log('Failed to create pending opportunity notifications:', notificationError.message);
+      }
+    }
+
     // Return the same mentee profile shape as register
     res.status(200).json({
       success: true,

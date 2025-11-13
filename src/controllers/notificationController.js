@@ -262,6 +262,46 @@ exports.createTestNotification = async (req, res) => {
   }
 };
 
+// Create pending opportunity notifications
+exports.createPendingOpportunityNotifications = async (userId, opportunities) => {
+  try {
+    if (!opportunities || opportunities.length === 0) return;
+    
+    const { Notification } = db.models;
+    const { getIO } = require('../services/socketService');
+    const io = getIO();
+    
+    for (const opp of opportunities) {
+      const notification = await Notification.create({
+        userId,
+        type: 'deadline_reminder',
+        title: `⏰ Application Deadline Approaching`,
+        message: `${opp.title} at ${opp.organization} - ${opp.message}`,
+        data: {
+          opportunityId: opp.id,
+          title: opp.title,
+          organization: opp.organization,
+          type: opp.type,
+          daysRemaining: opp.daysRemaining,
+          priority: opp.priority
+        },
+        priority: opp.priority === 'critical' ? 'high' : 'normal',
+        relatedId: opp.id,
+        link: `/opportunities/${opp.id}`
+      });
+      
+      // Send real-time notification
+      if (io) {
+        io.to(`user_${userId}`).emit('notification', notification);
+      }
+    }
+    
+    console.log(`✅ Created ${opportunities.length} pending opportunity notifications for user ${userId}`);
+  } catch (error) {
+    console.error('Failed to create pending opportunity notifications:', error.message);
+  }
+};
+
 // Create website notification (admin only)
 exports.createWebsiteNotification = async (req, res) => {
   try {
