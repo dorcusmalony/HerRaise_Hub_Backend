@@ -116,7 +116,7 @@ exports.trackApplicationClick = async (req, res) => {
 exports.toggleBookmark = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Opportunity } = db.models;
+    const { Opportunity, OpportunityApplication } = db.models;
 
     const opportunity = await Opportunity.findByPk(id);
     if (!opportunity) {
@@ -132,9 +132,26 @@ exports.toggleBookmark = async (req, res) => {
     if (userIndex > -1) {
       // Remove bookmark
       interestedUsers.splice(userIndex, 1);
+      
+      // Remove from tracking system
+      if (OpportunityApplication) {
+        await OpportunityApplication.destroy({
+          where: { userId: req.user.id, opportunityId: id }
+        });
+      }
     } else {
       // Add bookmark
       interestedUsers.push(req.user.id);
+      
+      // Add to tracking system
+      if (OpportunityApplication) {
+        await OpportunityApplication.findOrCreate({
+          where: { userId: req.user.id, opportunityId: id },
+          defaults: { status: 'pending' }
+        });
+      }
+      
+      console.log(`📝 Opportunity ${id} bookmarked and tracked for user ${req.user.id}`);
     }
 
     opportunity.interestedUsers = interestedUsers;
@@ -147,6 +164,7 @@ exports.toggleBookmark = async (req, res) => {
       message: userIndex === -1 ? req.t('opportunities.bookmarked') : req.t('opportunities.unbookmarked')
     });
   } catch (error) {
+    console.error('Bookmark error:', error);
     res.status(500).json({
       success: false,
       message: req.t('messages.error')
