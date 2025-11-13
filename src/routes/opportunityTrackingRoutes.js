@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { models } = require('../config/database');
+const { Op } = require('sequelize');
 
 // Get user's opportunity applications with status
 router.get('/my-applications', protect, async (req, res) => {
@@ -165,7 +166,10 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
     console.log('Fetching clicked opportunities for user:', req.user.id);
     
     const applications = await models.OpportunityApplication.findAll({
-      where: { userId: req.user.id },
+      where: { 
+        userId: req.user.id,
+        status: { [Op.ne]: 'completed' } // Exclude completed
+      },
       include: [{
         model: models.Opportunity,
         attributes: ['id', 'title', 'type', 'organization', 'applicationDeadline', 'description'],
