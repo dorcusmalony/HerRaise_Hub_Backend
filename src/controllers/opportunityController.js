@@ -436,6 +436,46 @@ exports.getApplication = async (req, res) => {
   }
 };
 
+// @desc    Mark opportunity as completed (remove from liked list)
+// @route   POST /api/opportunities/:id/complete
+// @access  Private
+exports.markOpportunityCompleted = async (req, res) => {
+  try {
+    const { OpportunityInteraction } = db.models;
+    const opportunityId = req.params.id;
+    const userId = req.user.id;
+
+    // Update interaction to mark as completed
+    const [interaction, created] = await OpportunityInteraction.findOrCreate({
+      where: { userId, opportunityId },
+      defaults: {
+        isInterested: false,
+        applicationStatus: 'completed',
+        clickedAt: new Date(),
+        statusUpdatedAt: new Date()
+      }
+    });
+
+    if (!created) {
+      interaction.isInterested = false;
+      interaction.applicationStatus = 'completed';
+      interaction.statusUpdatedAt = new Date();
+      await interaction.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Opportunity marked as completed and removed from liked list'
+    });
+  } catch (error) {
+    console.error('Mark completed error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Update application status (Admin only)
 // @route   PUT /api/opportunities/applications/:id/status
 // @access  Private (Admin)
