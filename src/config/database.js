@@ -528,8 +528,36 @@ const connectDB = async () => {
   Opportunity.hasMany(OpportunityApplication, { foreignKey: 'opportunityId' });
   OpportunityApplication.belongsTo(Opportunity, { foreignKey: 'opportunityId' });
 
-  // ShareZone model
-  const ShareZone = require('../models/ShareZone')(sequelize);
+  // ShareZone model with category field
+  const ShareZone = sequelize.define('ShareZone', {
+    _id: { 
+      type: DataTypes.UUID, 
+      defaultValue: DataTypes.UUIDV4, 
+      primaryKey: true 
+    },
+    title: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    content: { 
+      type: DataTypes.TEXT 
+    },
+    category: { 
+      type: DataTypes.ENUM('essays', 'projects', 'videos', 'resumes', 'cover-letters'), 
+      allowNull: false 
+    },
+    fileUrl: { 
+      type: DataTypes.TEXT 
+    },
+    author: { 
+      type: DataTypes.UUID, 
+      allowNull: false 
+    }
+  }, { 
+    timestamps: true,
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  });
   User.hasMany(ShareZone, { foreignKey: 'author' });
   ShareZone.belongsTo(User, { as: 'authorData', foreignKey: 'author' });
 
