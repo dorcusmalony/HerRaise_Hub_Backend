@@ -339,8 +339,9 @@ router.post('/completion-question/:opportunityId', protect, async (req, res) => 
       
       res.json({
         success: true,
-        message: 'Opportunity marked as completed',
-        status: 'completed'
+        message: 'Great! Opportunity marked as completed and removed from your list.',
+        status: 'completed',
+        showSuccess: true
       });
     } else {
       // User said "No" - keep as pending

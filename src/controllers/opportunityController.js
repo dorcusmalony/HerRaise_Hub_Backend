@@ -73,17 +73,30 @@ exports.getOpportunity = async (req, res) => {
     await opportunity.save();
 
     // Auto-track opportunity click for authenticated users
-    if (req.user && OpportunityInteraction) {
+    if (req.user) {
       try {
-        await OpportunityInteraction.findOrCreate({
-          where: { userId: req.user.id, opportunityId: req.params.id },
-          defaults: {
-            isInterested: true,
-            clickedAt: new Date(),
-            statusUpdatedAt: new Date()
-          }
-        });
+        // Track in OpportunityInteraction (for reminders)
+        if (OpportunityInteraction) {
+          await OpportunityInteraction.findOrCreate({
+            where: { userId: req.user.id, opportunityId: req.params.id },
+            defaults: {
+              isInterested: true,
+              clickedAt: new Date(),
+              statusUpdatedAt: new Date()
+            }
+          });
+        }
+        
+        // Track in OpportunityApplication (for liked list)
+        const { OpportunityApplication } = db.models;
+        if (OpportunityApplication) {
+          await OpportunityApplication.findOrCreate({
+            where: { userId: req.user.id, opportunityId: req.params.id },
+            defaults: { status: 'pending' }
+          });
+        }
       } catch (trackingError) {
+        console.log('Tracking error:', trackingError.message);
         // Continue without failing the request
       }
     }
