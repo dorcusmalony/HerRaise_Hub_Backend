@@ -9,7 +9,7 @@ const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit for videos
   fileFilter: (req, file, cb) => {
     cb(null, true); // Accept any file type
   }
@@ -130,7 +130,7 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    const validCategories = ['project', 'essay', 'resume', 'video', 'document', 'other'];
+    const validCategories = ['essays', 'projects', 'videos', 'resumes', 'cover-letters'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({ error: 'Invalid category' });
     }
@@ -166,6 +166,84 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       author: postWithAuthor.authorData,
       createdAt: postWithAuthor.createdAt
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/sharezone/:id - Update ShareZone post
+router.put('/:id', protect, upload.single('file'), async (req, res) => {
+  try {
+    const { title, content, category } = req.body;
+    
+    const post = await models.ShareZone.findByPk(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.author !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to update this post' });
+    }
+
+    const validCategories = ['essays', 'projects', 'videos', 'resumes', 'cover-letters'];
+    if (category && !validCategories.includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    if (title) post.title = title;
+    if (content !== undefined) post.content = content;
+    if (category) post.category = category;
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
+      post.fileUrl = result.secure_url;
+    }
+
+    await post.save();
+
+    const updatedPost = await models.ShareZone.findByPk(post._id, {
+      include: [{
+        model: models.User,
+        as: 'authorData',
+        attributes: ['id', 'name', 'profilePicture']
+      }]
+    });
+
+    res.json({
+      _id: updatedPost._id,
+      title: updatedPost.title,
+      content: updatedPost.content,
+      category: updatedPost.category,
+      fileUrl: updatedPost.fileUrl,
+      author: updatedPost.authorData,
+      createdAt: updatedPost.createdAt
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/sharezone/:id - Delete ShareZone post
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const post = await models.ShareZone.findByPk(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.author !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to delete this post' });
+    }
+
+    // Delete all comments first
+    await models.ShareZoneComment.destroy({
+      where: { post: req.params.id }
+    });
+
+    // Delete the post
+    await post.destroy();
+
+    res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
