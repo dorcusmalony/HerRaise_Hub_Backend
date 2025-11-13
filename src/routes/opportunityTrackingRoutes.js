@@ -139,20 +139,25 @@ router.post('/track/:opportunityId', protect, async (req, res) => {
     const { opportunityId } = req.params;
     const userId = req.user.id;
 
+    console.log(`📝 Tracking opportunity ${opportunityId} for user ${userId}`);
+
     const opportunity = await models.Opportunity.findByPk(opportunityId);
     if (!opportunity) {
       return res.status(404).json({ success: false, message: 'Opportunity not found' });
     }
 
-    const [application] = await models.OpportunityApplication.findOrCreate({
+    const [application, created] = await models.OpportunityApplication.findOrCreate({
       where: { userId, opportunityId },
       defaults: { status: 'pending' }
     });
 
+    console.log(`📝 Application ${created ? 'created' : 'found'} with status: ${application.status}`);
+
     res.json({
       success: true,
       message: 'Opportunity added to sidebar',
-      status: application.status
+      status: application.status,
+      created
     });
   } catch (error) {
     console.error('Track opportunity error:', error);
@@ -179,6 +184,7 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
     });
 
     console.log('Found applications:', applications.length);
+    console.log('Applications data:', applications.map(app => ({ id: app.id, opportunityId: app.opportunityId, status: app.status })));
 
     const clickedOpportunities = applications.map(app => ({
       id: app.id,
