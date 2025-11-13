@@ -403,7 +403,11 @@ exports.login = async (req, res) => {
           type: interaction.Opportunity.type,
           applicationDeadline: interaction.Opportunity.applicationDeadline,
           daysRemaining,
-          isUrgent: daysRemaining <= 3
+          isUrgent: daysRemaining <= 3,
+          message: daysRemaining <= 1 
+            ? `Application deadline is TODAY!` 
+            : `Application deadline in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''}`,
+          priority: daysRemaining <= 1 ? 'critical' : daysRemaining <= 3 ? 'high' : 'medium'
         };
       });
     } catch (reminderError) {
