@@ -100,11 +100,19 @@ exports.getPostsByCategory = async (req, res) => {
       };
     });
 
+    // Disable caching
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     res.status(200).json({
       success: true,
       category,
       count: formattedPosts.length,
-      posts: formattedPosts
+      posts: formattedPosts,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Get posts by category error:', error);
@@ -120,26 +128,24 @@ exports.getPostsByCategory = async (req, res) => {
 // @access  Public
 exports.getPosts = async (req, res) => {
   try {
-    const { ForumPost, User, ForumComment } = db.models;
+    const { ShareZone, User, ShareZoneComment } = db.models;
     const { filter = 'all', sort = 'recent', limit = 10, category } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const where = {
-      type: ['discussion', 'question', 'announcement'] // Only show forum discussions
-    };
-    if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
-      where.type = filter;
+    const where = {};
+    if (filter !== 'all' && ['essays', 'projects', 'videos', 'resumes', 'cover-letters'].includes(filter)) {
+      where.category = filter;
     }
-    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future'].includes(category)) {
+    if (category && ['essays', 'projects', 'videos', 'resumes', 'cover-letters'].includes(category)) {
       where.category = category;
     }
 
     let order = [['createdAt', 'DESC']];
     if (sort === 'popular') {
-      order = [['views', 'DESC'], ['createdAt', 'DESC']];
+      order = [['createdAt', 'DESC']];
     }
 
-    const posts = await ForumPost.findAll({
+    const posts = await ShareZone.findAll({
       where,
       order,
       limit: parseInt(limit, 10) || 10,
@@ -227,6 +233,19 @@ exports.getPosts = async (req, res) => {
       success: true,
       count: formattedPosts.length,
       posts: formattedPosts
+    });
+    // Disable caching for forum posts to show new posts immediately
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    res.status(200).json({
+      success: true,
+      count: formattedPosts.length,
+      posts: formattedPosts,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Get posts error:', error);
