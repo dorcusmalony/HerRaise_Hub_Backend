@@ -175,11 +175,20 @@ exports.getPosts = async (req, res) => {
     });
 
     // Format response with likes, views, viewers count
+    const categoryNames = {
+      'personal-growth': 'Personal Growth & Learning',
+      'mental-health': 'Mental Health & Wellbeing', 
+      'education-study': 'Education & Study Tips',
+      'career-future': 'Career & Future Opportunities'
+    };
+    
     const formattedPosts = posts.map(post => {
       const postData = post.toJSON();
       // Localize title/content
       postData.title = getLocalizedContent(postData, 'title', lang);
       postData.content = getLocalizedContent(postData, 'content', lang);
+      // Add category display name
+      postData.categoryName = postData.category ? categoryNames[postData.category] : null;
       // Always include both language fields for frontend switching
       postData.title_en = postData.title;
       postData.title_ar = postData.title_ar || '';
@@ -209,7 +218,8 @@ exports.getPosts = async (req, res) => {
         viewsCount: postData.views || 0,
         viewersCount: (postData.viewers || []).length,
         attachmentsCount: (postData.attachments || []).length,
-        hasAttachments: (postData.attachments || []).length > 0
+        hasAttachments: (postData.attachments || []).length > 0,
+        publishedFrom: postData.categoryName ? `Published from ${postData.categoryName}` : null
       };
     });
 
@@ -255,6 +265,8 @@ exports.createPost = async (req, res) => {
       authorId: req.user.id
     });
 
+    console.log(`📝 Forum post created with category: ${category}`);
+
     await post.reload({
       include: [{
         model: User,
@@ -264,12 +276,22 @@ exports.createPost = async (req, res) => {
     });
 
     // Send notification to all users about new post
-    console.log('📝 Creating forum post notification for:', title);
+    const categoryNames = {
+      'personal-growth': 'Personal Growth & Learning',
+      'mental-health': 'Mental Health & Wellbeing', 
+      'education-study': 'Education & Study Tips',
+      'career-future': 'Career & Future Opportunities'
+    };
+    
+    const categoryName = category ? categoryNames[category] : 'General Discussion';
+    console.log(`📝 Creating forum post notification for: ${title} in ${categoryName}`);
+    
     const NotificationService = require('../services/notificationService');
     await NotificationService.notifyNewForumQuestion(
       {
         id: post.id,
         title: title,
+        category: categoryName,
         author: {
           name: req.user.name
         }
