@@ -388,6 +388,10 @@ const connectDB = async () => {
       type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback', 'essay', 'video', 'resume', 'cover_letter'), 
       defaultValue: 'discussion' 
     },
+    category: {
+      type: DataTypes.ENUM('personal-growth', 'mental-health', 'education-study', 'career-future'),
+      allowNull: true
+    },
     tags: { type: DataTypes.JSONB, defaultValue: [] },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
     views: { type: DataTypes.INTEGER, defaultValue: 0 },
