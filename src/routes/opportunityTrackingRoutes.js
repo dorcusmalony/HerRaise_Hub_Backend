@@ -139,23 +139,39 @@ router.post('/track/:opportunityId', protect, async (req, res) => {
     const { opportunityId } = req.params;
     const userId = req.user.id;
 
+    console.log(`📝 TRACK REQUEST: opportunity ${opportunityId} for user ${userId}`);
+    console.log(`📝 OpportunityApplication model exists:`, !!models.OpportunityApplication);
+
     const opportunity = await models.Opportunity.findByPk(opportunityId);
     if (!opportunity) {
+      console.log(`❌ Opportunity ${opportunityId} not found`);
       return res.status(404).json({ success: false, message: 'Opportunity not found' });
     }
 
-    const [application] = await models.OpportunityApplication.findOrCreate({
+    console.log(`✅ Opportunity found: ${opportunity.title}`);
+
+    const [application, created] = await models.OpportunityApplication.findOrCreate({
       where: { userId, opportunityId },
       defaults: { status: 'pending' }
     });
 
+    console.log(`📝 Application ${created ? 'CREATED' : 'FOUND'} - ID: ${application.id}, Status: ${application.status}`);
+    
+    // Verify it was saved
+    const verification = await models.OpportunityApplication.findOne({
+      where: { userId, opportunityId }
+    });
+    console.log(`🔍 VERIFICATION: Application exists in DB:`, !!verification);
+
     res.json({
       success: true,
       message: 'Opportunity added to sidebar',
-      status: application.status
+      status: application.status,
+      created,
+      applicationId: application.id
     });
   } catch (error) {
-    console.error('Track opportunity error:', error);
+    console.error('❌ Track opportunity error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -179,6 +195,7 @@ router.get('/clicked-opportunities', protect, async (req, res) => {
     });
 
     console.log('Found applications:', applications.length);
+    console.log('Applications data:', applications.map(app => ({ id: app.id, opportunityId: app.opportunityId, status: app.status })));
 
     const clickedOpportunities = applications.map(app => ({
       id: app.id,

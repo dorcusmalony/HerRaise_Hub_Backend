@@ -68,6 +68,8 @@ exports.getOpportunity = async (req, res) => {
       });
     }
 
+    console.log(`🔍 User ${req.user?.id || 'anonymous'} clicked opportunity: ${req.params.id}`);
+
     // Increment view count
     opportunity.views = (opportunity.views || 0) + 1;
     await opportunity.save();
