@@ -157,14 +157,22 @@ exports.getPostsByCategory = async (req, res) => {
         });
       }
       
+      const likesCount = (postData.likes || []).length;
+      const commentsCount = (postData.ForumComments || []).length;
+      const viewsCount = postData.views || 0;
+      
       return {
         ...postData,
-        likesCount: (postData.likes || []).length,
-        commentsCount: (postData.ForumComments || []).length,
-        viewsCount: postData.views || 0,
+        likesCount,
+        commentsCount,
+        viewsCount,
         viewersCount: (postData.viewers || []).length,
         attachmentsCount: (postData.attachments || []).length,
-        hasAttachments: (postData.attachments || []).length > 0
+        hasAttachments: (postData.attachments || []).length > 0,
+        likesText: `${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`,
+        commentsText: `${commentsCount} ${commentsCount === 1 ? 'comment' : 'comments'}`,
+        viewsText: `${viewsCount} ${viewsCount === 1 ? 'view' : 'views'}`,
+        isLikedByUser: req.user ? (postData.likes || []).includes(req.user.id) : false
       };
     });
 
@@ -492,14 +500,22 @@ exports.getPost = async (req, res) => {
         return comment;
       });
     }
+    const likesCount = (postData.likes || []).length;
+    const commentsCount = (postData.ForumComments || []).length;
+    const viewsCount = postData.views || 0;
+    
     const formattedPost = {
       ...postData,
-      likesCount: (postData.likes || []).length,
-      commentsCount: (postData.ForumComments || []).length,
-      viewsCount: postData.views,
+      likesCount,
+      commentsCount,
+      viewsCount,
       viewersCount: (postData.viewers || []).length,
       attachmentsCount: (postData.attachments || []).length,
-      hasAttachments: (postData.attachments || []).length > 0
+      hasAttachments: (postData.attachments || []).length > 0,
+      likesText: `${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`,
+      commentsText: `${commentsCount} ${commentsCount === 1 ? 'comment' : 'comments'}`,
+      viewsText: `${viewsCount} ${viewsCount === 1 ? 'view' : 'views'}`,
+      isLikedByUser: req.user ? (postData.likes || []).includes(req.user.id) : false
     };
 
     res.status(200).json({
@@ -604,7 +620,7 @@ exports.deletePost = async (req, res) => {
 // @access  Private
 exports.addComment = async (req, res) => {
   try {
-    const { ForumComment, ForumPost, User } = db.models;
+    const { ForumComment, ForumPost, User, Notification } = db.models;
     const { content, parentCommentId, content_ar } = req.body;
 
     if (!content) {
@@ -615,7 +631,9 @@ exports.addComment = async (req, res) => {
     }
 
     // Check if post exists
-    const post = await ForumPost.findByPk(req.params.id);
+    const post = await ForumPost.findByPk(req.params.id, {
+      include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
+    });
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -628,6 +646,14 @@ exports.addComment = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'This post is locked and cannot receive new comments'
+      });
+    }
+
+    // Get parent comment if replying
+    let parentComment = null;
+    if (parentCommentId) {
+      parentComment = await ForumComment.findByPk(parentCommentId, {
+        include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
       });
     }
 
@@ -656,22 +682,49 @@ exports.addComment = async (req, res) => {
       ]
     });
 
-    // Send notification to post author about new comment
-    const NotificationService = require('../services/notificationService');
-    await NotificationService.notifyNewComment(
-      {
-        id: comment.id,
-        author: {
-          name: req.user.name
-        }
-      },
-      {
-        id: post.id,
-        title: post.title,
-        authorId: post.authorId
-      },
-      req.user.id
-    );
+    // Send notification to post author (if not commenting on own post)
+    if (post.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: post.authorId,
+        type: 'forum_comment',
+        title: parentCommentId ? 'New reply on your post' : 'New comment on your post',
+        message: parentCommentId 
+          ? `${req.user.name} replied to a comment on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"` 
+          : `${req.user.name} commented on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
+        data: {
+          postId: post.id,
+          postTitle: post.title,
+          commentId: comment.id,
+          commenterName: req.user.name,
+          commenterId: req.user.id,
+          isReply: !!parentCommentId
+        },
+        relatedId: post.id,
+        link: `/forum/posts/${post.id}`
+      });
+      console.log(`📢 Comment notification sent to ${post.author?.name}`);
+    }
+
+    // Send notification to parent comment author (if replying and not to self)
+    if (parentComment && parentComment.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: parentComment.authorId,
+        type: 'forum_reply',
+        title: 'Someone replied to your comment',
+        message: `${req.user.name} replied to your comment on "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
+        data: {
+          postId: post.id,
+          postTitle: post.title,
+          commentId: comment.id,
+          parentCommentId: parentCommentId,
+          replierName: req.user.name,
+          replierId: req.user.id
+        },
+        relatedId: post.id,
+        link: `/forum/posts/${post.id}`
+      });
+      console.log(`📢 Reply notification sent to ${parentComment.author?.name}`);
+    }
 
     // Check if replying user is the post author
     const isPostAuthor = post.authorId.toString() === req.user.id;
@@ -682,7 +735,8 @@ exports.addComment = async (req, res) => {
         ...comment.toJSON(),
         likesCount: (comment.likes || []).length,
         isPostAuthorReply: isPostAuthor && parentCommentId !== null
-      }
+      },
+      message: parentCommentId ? 'Reply added successfully' : 'Comment added successfully'
     });
   } catch (error) {
     console.error('Add comment error:', error);
@@ -778,9 +832,11 @@ exports.deleteComment = async (req, res) => {
 // @access  Private
 exports.togglePostLike = async (req, res) => {
   try {
-    const { ForumPost } = db.models;
+    const { ForumPost, User, Notification } = db.models;
     
-    const post = await ForumPost.findByPk(req.params.id);
+    const post = await ForumPost.findByPk(req.params.id, {
+      include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
+    });
 
     if (!post) {
       return res.status(404).json({
@@ -792,6 +848,7 @@ exports.togglePostLike = async (req, res) => {
     const likes = post.likes || [];
     const userIdStr = req.user.id.toString();
     const likeIndex = likes.findIndex(id => id.toString() === userIdStr);
+    const isLiking = likeIndex === -1;
 
     if (likeIndex > -1) {
       // Unlike
@@ -804,25 +861,30 @@ exports.togglePostLike = async (req, res) => {
     post.likes = likes;
     await post.save();
 
-    // Send notification for new like (not unlike)
-    if (likeIndex === -1) {
-      const NotificationService = require('../services/notificationService');
-      await NotificationService.notifyPostLike(
-        {
-          id: post.id,
-          title: post.title,
-          authorId: post.authorId
+    // Send notification for new like (not unlike) and not to self
+    if (isLiking && post.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: post.authorId,
+        type: 'forum_like',
+        title: 'Someone liked your post',
+        message: `${req.user.name} liked your post "${post.title.substring(0, 50)}${post.title.length > 50 ? '...' : ''}"`,
+        data: {
+          postId: post.id,
+          postTitle: post.title,
+          likerName: req.user.name,
+          likerId: req.user.id
         },
-        req.user.id,
-        req.user.name
-      );
+        relatedId: post.id,
+        link: `/forum/posts/${post.id}`
+      });
+      console.log(`📢 Like notification sent to ${post.author?.name} for post: ${post.title}`);
     }
 
     res.status(200).json({
       success: true,
-      liked: likeIndex === -1,
+      liked: isLiking,
       likesCount: likes.length,
-      likes: likes
+      message: isLiking ? `You liked this post (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})` : `You unliked this post (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})`
     });
   } catch (error) {
     console.error('Toggle post like error:', error);
@@ -838,9 +900,14 @@ exports.togglePostLike = async (req, res) => {
 // @access  Private
 exports.toggleCommentLike = async (req, res) => {
   try {
-    const { ForumComment } = db.models;
+    const { ForumComment, User, Notification, ForumPost } = db.models;
     
-    const comment = await ForumComment.findByPk(req.params.id);
+    const comment = await ForumComment.findByPk(req.params.id, {
+      include: [
+        { model: User, as: 'author', attributes: ['id', 'name'] },
+        { model: ForumPost, attributes: ['id', 'title'] }
+      ]
+    });
 
     if (!comment) {
       return res.status(404).json({
@@ -852,6 +919,7 @@ exports.toggleCommentLike = async (req, res) => {
     const likes = comment.likes || [];
     const userIdStr = req.user.id.toString();
     const likeIndex = likes.findIndex(id => id.toString() === userIdStr);
+    const isLiking = likeIndex === -1;
 
     if (likeIndex > -1) {
       // Unlike
@@ -864,11 +932,31 @@ exports.toggleCommentLike = async (req, res) => {
     comment.likes = likes;
     await comment.save();
 
+    // Send notification for new like (not unlike) and not to self
+    if (isLiking && comment.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: comment.authorId,
+        type: 'forum_comment_like',
+        title: 'Someone liked your comment',
+        message: `${req.user.name} liked your comment on "${comment.ForumPost?.title?.substring(0, 40)}${comment.ForumPost?.title?.length > 40 ? '...' : ''}"`,
+        data: {
+          commentId: comment.id,
+          postId: comment.postId,
+          postTitle: comment.ForumPost?.title,
+          likerName: req.user.name,
+          likerId: req.user.id
+        },
+        relatedId: comment.postId,
+        link: `/forum/posts/${comment.postId}`
+      });
+      console.log(`📢 Comment like notification sent to ${comment.author?.name}`);
+    }
+
     res.status(200).json({
       success: true,
-      liked: likeIndex === -1,
+      liked: isLiking,
       likesCount: likes.length,
-      likes: likes
+      message: isLiking ? `You liked this comment (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})` : `You unliked this comment (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})`
     });
   } catch (error) {
     console.error('Toggle comment like error:', error);
