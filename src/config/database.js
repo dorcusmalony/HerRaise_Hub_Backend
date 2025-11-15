@@ -385,7 +385,7 @@ const connectDB = async () => {
     title: { type: DataTypes.STRING, allowNull: false },
     content: { type: DataTypes.TEXT, allowNull: false },
     type: { 
-      type: DataTypes.ENUM('discussion', 'question', 'project', 'announcement', 'feedback', 'essay', 'video', 'resume', 'cover_letter'), 
+      type: DataTypes.ENUM('discussion', 'question', 'announcement'), 
       defaultValue: 'discussion' 
     },
     category: {
@@ -395,7 +395,7 @@ const connectDB = async () => {
     tags: { type: DataTypes.JSONB, defaultValue: [] },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
     views: { type: DataTypes.INTEGER, defaultValue: 0 },
-    isPinned: { type: DataTypes.BOOLEAN, defaultValue: false },
+    viewers: { type: DataTypes.JSONB, defaultValue: [] },
     isLocked: { type: DataTypes.BOOLEAN, defaultValue: false },
     attachments: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
@@ -404,7 +404,7 @@ const connectDB = async () => {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     content: { type: DataTypes.TEXT, allowNull: false },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
-    parentCommentId: { type: DataTypes.UUID, allowNull: true } // For nested replies
+    parentCommentId: { type: DataTypes.UUID, allowNull: true }
   }, { timestamps: true });
 
   const Scholarship = sequelize.define('Scholarship', {
