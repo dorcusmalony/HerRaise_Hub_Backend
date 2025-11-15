@@ -28,10 +28,12 @@ exports.getCategories = (_req, res) => {
   res.status(200).json({
     success: true,
     categories: [
-      { id: 'personal-growth', name: 'Personal Growth & Learning' },
-      { id: 'mental-health', name: 'Mental Health & Wellbeing' },
-      { id: 'education-study', name: 'Education & Study Tips' },
-      { id: 'career-future', name: 'Career & Future Opportunities' }
+      { id: 'mental-health', name: 'Mental Health & Wellbeing', icon: '🧠' },
+      { id: 'leadership', name: 'Leadership & Empowerment', icon: '👑' },
+      { id: 'education-study', name: 'Education & Learning', icon: '📚' },
+      { id: 'equality-rights', name: 'Equality, Equity & Rights', icon: '⚖️' },
+      { id: 'career-skills', name: 'Career & Skills', icon: '💼' },
+      { id: 'womens-health', name: "Women's Health", icon: '🌸' }
     ]
   });
 };
@@ -46,7 +48,7 @@ exports.getPostsByCategory = async (req, res) => {
     const { sort = 'recent', limit = 10 } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
@@ -142,7 +144,7 @@ exports.getPosts = async (req, res) => {
     if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
       where.type = filter;
     }
-    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'].includes(category)) {
+    if (category && ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'].includes(category)) {
       where.category = category;
     }
 
@@ -248,7 +250,7 @@ exports.createPost = async (req, res) => {
     const { ForumPost, User } = db.models;
     const { title, content, type, tags, title_ar, content_ar, attachments, category } = req.body;
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
