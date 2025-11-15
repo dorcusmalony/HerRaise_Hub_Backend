@@ -628,10 +628,6 @@ const connectDB = async () => {
 
     console.log(' Sequelize models synced (tables created/updated)');
     
-    // Seed system translations
-    const { seedTranslations } = require('../utils/seedTranslations');
-    await seedTranslations(SystemTranslation);
-    
   } catch (syncErr) {
     console.error(' Sequelize sync error:', syncErr && syncErr.message);
     process.exit(1);

@@ -187,9 +187,7 @@ app.use('/api/reminders', reminderRoutes);
 app.use('/api/push-notifications', pushNotificationRoutes);
 app.use('/api', languageRoutes);
 
-// Health check routes
-const healthRoutes = require('./routes/healthRoutes');
-app.use('/api', healthRoutes);
+
 
 // API endpoint for client-side translations
 app.get('/api/translations', (req, res) => {
