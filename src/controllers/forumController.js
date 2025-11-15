@@ -169,8 +169,12 @@ exports.getPosts = async (req, res) => {
       'career-future': 'Career & Future Opportunities'
     };
     
-    const formattedPosts = posts.map(post => {
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+    
+    const formattedPosts = posts.map((post, index) => {
       const postData = post.toJSON();
+      // Assign color based on post ID or index
+      postData.cardColor = colors[post.id.charCodeAt(0) % colors.length];
       // Localize title/content
       postData.title = getLocalizedContent(postData, 'title', lang);
       postData.content = getLocalizedContent(postData, 'content', lang);
