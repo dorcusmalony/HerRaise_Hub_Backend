@@ -389,7 +389,7 @@ const connectDB = async () => {
       defaultValue: 'discussion' 
     },
     category: {
-      type: DataTypes.ENUM('personal-growth', 'mental-health', 'education-study', 'career-future'),
+      type: DataTypes.ENUM('personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'),
       allowNull: true
     },
     tags: { type: DataTypes.JSONB, defaultValue: [] },
