@@ -45,7 +45,7 @@ exports.getPostsByCategory = async (req, res) => {
     const { sort = 'recent', limit = 10 } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future'];
+    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
@@ -138,7 +138,7 @@ exports.getPosts = async (req, res) => {
     if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
       where.type = filter;
     }
-    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future'].includes(category)) {
+    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'].includes(category)) {
       where.category = category;
     }
 
@@ -244,7 +244,7 @@ exports.createPost = async (req, res) => {
     const { ForumPost, User } = db.models;
     const { title, content, type, tags, title_ar, content_ar, attachments, category } = req.body;
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future'];
+    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
