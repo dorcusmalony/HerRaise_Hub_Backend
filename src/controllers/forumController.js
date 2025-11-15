@@ -210,11 +210,6 @@ exports.getPosts = async (req, res) => {
       };
     });
 
-    res.status(200).json({
-      success: true,
-      count: formattedPosts.length,
-      posts: formattedPosts
-    });
     // Disable caching for forum posts to show new posts immediately
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate',
