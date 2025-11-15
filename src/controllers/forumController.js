@@ -128,15 +128,17 @@ exports.getPostsByCategory = async (req, res) => {
 // @access  Public
 exports.getPosts = async (req, res) => {
   try {
-    const { ShareZone, User, ShareZoneComment } = db.models;
+    const { ForumPost, User } = db.models;
     const { filter = 'all', sort = 'recent', limit = 10, category } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const where = {};
-    if (filter !== 'all' && ['essays', 'projects', 'videos', 'resumes', 'cover-letters'].includes(filter)) {
-      where.category = filter;
+    const where = {
+      type: ['discussion', 'question', 'announcement']
+    };
+    if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
+      where.type = filter;
     }
-    if (category && ['essays', 'projects', 'videos', 'resumes', 'cover-letters'].includes(category)) {
+    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future'].includes(category)) {
       where.category = category;
     }
 
@@ -145,7 +147,7 @@ exports.getPosts = async (req, res) => {
       order = [['createdAt', 'DESC']];
     }
 
-    const posts = await ShareZone.findAll({
+    const posts = await ForumPost.findAll({
       where,
       order,
       limit: parseInt(limit, 10) || 10,
@@ -155,28 +157,7 @@ exports.getPosts = async (req, res) => {
           as: 'author',
           attributes: ['id', 'name', 'profilePicture', 'role']
         },
-        {
-          model: ForumComment,
-          where: { parentCommentId: null },
-          required: false,
-          include: [
-            {
-              model: User,
-              as: 'author',
-              attributes: ['id', 'name', 'profilePicture', 'role']
-            },
-            {
-              model: ForumComment,
-              as: 'replies',
-              include: [{
-                model: User,
-                as: 'author',
-                attributes: ['id', 'name', 'profilePicture', 'role']
-              }]
-            }
-          ],
-          order: [['createdAt', 'ASC']]
-        }
+        // Comments disabled for now
       ]
     });
 
