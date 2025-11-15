@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { Op } = require('sequelize');
 
 // Helper to get localized content (English/Juba Arabic)
 function getLocalizedContent(obj, field, lang) {
@@ -60,7 +61,10 @@ exports.getPostsByCategory = async (req, res) => {
 
     const posts = await ForumPost.findAll({
       where: {
-        category,
+        [Op.or]: [
+          { category },
+          { category: null }
+        ],
         type: ['discussion', 'question', 'announcement']
       },
       order,
