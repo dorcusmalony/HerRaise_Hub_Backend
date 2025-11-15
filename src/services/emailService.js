@@ -36,35 +36,54 @@ const sendEmail = async (options) => {
 
 // Password reset email template
 const sendPasswordResetEmail = async (email, resetToken, userName) => {
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+  const BACKEND_URL = process.env.BACKEND_URL || 'https://herraise-hub-backend.onrender.com';
+  const resetUrl = `${BACKEND_URL}/api/auth/reset-password/${resetToken}`;
   
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
-      <h2 style="color: #333;">Password Reset Request</h2>
-      <p>Hi ${userName},</p>
-      <p>You requested to reset your password for your HerRaise Hub account.</p>
-      <p>Click the button below to reset your password:</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${resetUrl}" 
-           style="background-color: #007bff; color: white; padding: 12px 24px; 
-                  text-decoration: none; border-radius: 5px; display: inline-block;">
-          Reset Password
-        </a>
+      <div style="text-align: center; padding: 20px; background-color: #dc3545; color: white;">
+        <h1>🔐 Password Reset Request</h1>
       </div>
-      <p>Or copy and paste this link in your browser:</p>
-      <p style="word-break: break-all; color: #007bff;">${resetUrl}</p>
-      <p><strong>This link will expire in 10 minutes.</strong></p>
-      <p>If you didn't request this, please ignore this email.</p>
+      <div style="padding: 30px;">
+        <h2 style="color: #333;">Hi ${userName}! 👋</h2>
+        <p>You requested to reset your password for your HerRaise Hub account.</p>
+        <p><strong>Click the button below to create a new password:</strong></p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" 
+             style="background-color: #dc3545; color: white; padding: 15px 30px; 
+                    text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            🔑 Reset My Password
+          </a>
+        </div>
+        
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #856404;"><strong>⏰ Important:</strong> This link expires in 10 minutes for security reasons.</p>
+        </div>
+        
+        <p>Or copy and paste this link in your browser:</p>
+        <p style="word-break: break-all; color: #dc3545; font-size: 14px; background-color: #f8f9fa; padding: 10px; border-radius: 4px;">${resetUrl}</p>
+        
+        <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #0c5460;"><strong>🛡️ Security Note:</strong> If you didn't request this password reset, please ignore this email. Your account remains secure.</p>
+        </div>
+        
+        <p>Need help? Contact our support team anytime.</p>
+        
+        <p>Best regards,<br>
+        <strong>The HerRaise Hub Team</strong></p>
+      </div>
       <hr style="margin: 30px 0;">
-      <p style="color: #666; font-size: 12px;">
-        HerRaise Hub - Empowering Women in South Sudan
-      </p>
+      <div style="text-align: center; color: #666; font-size: 12px;">
+        <p>HerRaise Hub - Empowering Women in South Sudan</p>
+        <p>This password reset was requested for: ${email}</p>
+      </div>
     </div>
   `;
 
   return await sendEmail({
     to: email,
-    subject: 'Reset Your Password - HerRaise Hub',
+    subject: '🔐 Reset Your Password - HerRaise Hub',
     html
   });
 };
@@ -333,7 +352,8 @@ const sendWeeklyOpportunityDigest = async (email, firstName, opportunities) => {
 
 // Email verification template
 const sendVerificationEmail = async (email, userName, verificationToken, userId) => {
-  const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}&id=${userId}`;
+  const BACKEND_URL = process.env.BACKEND_URL || 'https://herraise-hub-backend.onrender.com';
+  const verificationUrl = `${BACKEND_URL}/api/auth/verify/${verificationToken}/${userId}`;
   
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
