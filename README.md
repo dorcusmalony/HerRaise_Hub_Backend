@@ -1,5 +1,3 @@
-
-
 # HerRaise_Hub_Backend
 
 Production-ready Node.js backend for the HerRaise Hub platform — REST API built with Express and Sequelize (Postgres).  
@@ -58,6 +56,38 @@ The server exposes the API on http://localhost:5000/api and health check at /hea
 ## Database & migrations
 - The project contains SQL migration scripts in `db/migrations/`.
 - `src/config/database.js` will attempt to ensure the Postgres database exists, define models and sync them. The file also includes custom logic for fixing legacy nulls and recreating the Reports table when needed.
+
+### Schema Management Strategy
+
+**Development Mode (Current):**
+```bash
+# .env
+USE_MIGRATIONS=false  # Uses Sequelize auto-sync
+```
+- Automatically creates/updates tables on startup
+- Faster iteration during development
+- Suitable for capstone demonstration
+
+**Migration Infrastructure:**
+The project includes production-ready migrations in `src/migrations/`:
+- `20250120-add-arabic-english-bilingual-support.js` - Adds Arabic/English bilingual support across all content tables, with transaction safety and rollback capability. Specifically designed for South Sudan's multilingual user base.
+
+**To Use Migrations (Production):**
+```bash
+# 1. Set environment variable
+USE_MIGRATIONS=true
+
+# 2. Run migrations
+npx sequelize-cli db:migrate
+
+# 3. Start application
+npm start
+```
+
+**Why Both Approaches Exist:**
+- ✅ Auto-sync: Fast development, automatic schema updates
+- ✅ Migrations: Production safety, version control, rollback capability
+- 🎯 Best practice: Use auto-sync in dev, migrations in production
 
 ---
 

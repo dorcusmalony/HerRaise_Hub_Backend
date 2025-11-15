@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { Op } = require('sequelize');
 
 // Helper to get localized content (English/Juba Arabic)
 function getLocalizedContent(obj, field, lang) {
@@ -27,10 +28,12 @@ exports.getCategories = (_req, res) => {
   res.status(200).json({
     success: true,
     categories: [
-      { id: 'personal-growth', name: 'Personal Growth & Learning' },
-      { id: 'mental-health', name: 'Mental Health & Wellbeing' },
-      { id: 'education-study', name: 'Education & Study Tips' },
-      { id: 'career-future', name: 'Career & Future Opportunities' }
+      { id: 'mental-health', name: 'Mental Health & Wellbeing', icon: '🧠' },
+      { id: 'leadership', name: 'Leadership & Empowerment', icon: '👑' },
+      { id: 'education-study', name: 'Education & Learning', icon: '📚' },
+      { id: 'equality-rights', name: 'Equality, Equity & Rights', icon: '⚖️' },
+      { id: 'career-skills', name: 'Career & Skills', icon: '💼' },
+      { id: 'womens-health', name: "Women's Health", icon: '🌸' }
     ]
   });
 };
@@ -42,10 +45,10 @@ exports.getPostsByCategory = async (req, res) => {
   try {
     const { ForumPost, User, ForumComment } = db.models;
     const { category } = req.params;
-    const { sort = 'recent', limit = 10 } = req.query;
+    const { sort = 'recent', limit = 20, page = 1, type = 'all' } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
@@ -53,18 +56,41 @@ exports.getPostsByCategory = async (req, res) => {
       });
     }
 
+    // Category display names
+    const categoryNames = {
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
+    };
+
     let order = [['createdAt', 'DESC']];
     if (sort === 'popular') {
       order = [['views', 'DESC'], ['createdAt', 'DESC']];
+    } else if (sort === 'most-liked') {
+      order = [['createdAt', 'DESC']];
     }
 
-    const posts = await ForumPost.findAll({
-      where: {
-        category,
-        type: ['discussion', 'question', 'announcement']
-      },
+    // Build where clause
+    const where = {
+      category,
+      type: ['discussion', 'question', 'announcement']
+    };
+    
+    if (type !== 'all' && ['discussion', 'question', 'announcement'].includes(type)) {
+      where.type = type;
+    }
+
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const limitNum = parseInt(limit, 10) || 20;
+
+    const { count, rows: posts } = await ForumPost.findAndCountAll({
+      where,
       order,
-      limit: parseInt(limit, 10) || 10,
+      limit: limitNum,
+      offset,
       include: [
         {
           model: User,
@@ -80,6 +106,16 @@ exports.getPostsByCategory = async (req, res) => {
               model: User,
               as: 'author',
               attributes: ['id', 'name', 'profilePicture', 'role']
+            },
+            {
+              model: ForumComment,
+              as: 'replies',
+              include: [{
+                model: User,
+                as: 'author',
+                attributes: ['id', 'name', 'profilePicture', 'role']
+              }],
+              order: [['createdAt', 'ASC']]
             }
           ],
           order: [['createdAt', 'ASC']]
@@ -87,18 +123,55 @@ exports.getPostsByCategory = async (req, res) => {
       ]
     });
 
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+    
     const formattedPosts = posts.map(post => {
       const postData = post.toJSON();
+      postData.cardColor = colors[post.id.charCodeAt(0) % colors.length];
       postData.title = getLocalizedContent(postData, 'title', lang);
       postData.content = getLocalizedContent(postData, 'content', lang);
+      postData.categoryName = categoryNames[category];
+      postData.publishedFrom = `Published from ${categoryNames[category]}`;
+      
+      // Include both language versions for frontend switching
+      postData.title_en = postData.title;
+      postData.title_ar = postData.title_ar || '';
+      postData.content_en = postData.content;
+      postData.content_ar = postData.content_ar || '';
+      
+      // Localize comments
+      if (postData.ForumComments) {
+        postData.ForumComments = postData.ForumComments.map(comment => {
+          comment.content = getLocalizedContent(comment, 'content', lang);
+          comment.content_en = comment.content;
+          comment.content_ar = comment.content_ar || '';
+          if (comment.replies) {
+            comment.replies = comment.replies.map(reply => {
+              reply.content = getLocalizedContent(reply, 'content', lang);
+              reply.content_en = reply.content;
+              reply.content_ar = reply.content_ar || '';
+              return reply;
+            });
+          }
+          return comment;
+        });
+      }
+      
       return {
         ...postData,
         likesCount: (postData.likes || []).length,
         commentsCount: (postData.ForumComments || []).length,
         viewsCount: postData.views || 0,
-        attachmentsCount: (postData.attachments || []).length
+        viewersCount: (postData.viewers || []).length,
+        attachmentsCount: (postData.attachments || []).length,
+        hasAttachments: (postData.attachments || []).length > 0
       };
     });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(count / limitNum);
+    const hasNextPage = parseInt(page, 10) < totalPages;
+    const hasPrevPage = parseInt(page, 10) > 1;
 
     // Disable caching
     res.set({
@@ -110,8 +183,17 @@ exports.getPostsByCategory = async (req, res) => {
     res.status(200).json({
       success: true,
       category,
+      categoryName: categoryNames[category],
       count: formattedPosts.length,
+      totalCount: count,
       posts: formattedPosts,
+      pagination: {
+        currentPage: parseInt(page, 10),
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+        limit: limitNum
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -138,7 +220,7 @@ exports.getPosts = async (req, res) => {
     if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
       where.type = filter;
     }
-    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'].includes(category)) {
+    if (category && ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'].includes(category)) {
       where.category = category;
     }
 
@@ -244,7 +326,14 @@ exports.createPost = async (req, res) => {
     const { ForumPost, User } = db.models;
     const { title, content, type, tags, title_ar, content_ar, attachments, category } = req.body;
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and content are required'
+      });
+    }
+
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
@@ -276,10 +365,12 @@ exports.createPost = async (req, res) => {
 
     // Send notification to all users about new post
     const categoryNames = {
-      'personal-growth': 'Personal Growth & Learning',
-      'mental-health': 'Mental Health & Wellbeing', 
-      'education-study': 'Education & Study Tips',
-      'career-future': 'Career & Future Opportunities'
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
     };
     
     const categoryName = category ? categoryNames[category] : 'General Discussion';
@@ -299,11 +390,17 @@ exports.createPost = async (req, res) => {
     );
     console.log('✅ Forum post notification sent');
 
+    // Format response with category info
+    const postData = post.toJSON();
+    postData.categoryName = categoryName;
+    postData.publishedFrom = category ? `Published from ${categoryName}` : null;
+
     res.status(201).json({
       success: true,
-      post
+      post: postData
     });
   } catch (error) {
+    console.error('Create post error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -812,6 +909,176 @@ exports.createFeedbackPost = async (req, res) => {
       post
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Create post in specific category
+// @route   POST /api/forum/categories/:category/posts
+// @access  Private
+exports.createPostInCategory = async (req, res) => {
+  try {
+    const { ForumPost, User } = db.models;
+    const { category } = req.params;
+    const { title, content, type, tags, title_ar, content_ar, attachments } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and content are required'
+      });
+    }
+
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category'
+      });
+    }
+
+    const post = await ForumPost.create({
+      title,
+      content,
+      title_ar: title_ar || null,
+      content_ar: content_ar || null,
+      type: type || 'discussion',
+      category,
+      tags: Array.isArray(tags) ? tags : [],
+      attachments: Array.isArray(attachments) ? attachments : [],
+      authorId: req.user.id
+    });
+
+    await post.reload({
+      include: [{
+        model: User,
+        as: 'author',
+        attributes: ['id', 'name', 'profilePicture', 'role']
+      }]
+    });
+
+    const categoryNames = {
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
+    };
+
+    // Send notification
+    const NotificationService = require('../services/notificationService');
+    await NotificationService.notifyNewForumQuestion(
+      {
+        id: post.id,
+        title: title,
+        category: categoryNames[category],
+        author: {
+          name: req.user.name
+        }
+      },
+      req.user.id
+    );
+
+    const postData = post.toJSON();
+    postData.categoryName = categoryNames[category];
+    postData.publishedFrom = `Published from ${categoryNames[category]}`;
+
+    res.status(201).json({
+      success: true,
+      post: postData
+    });
+  } catch (error) {
+    console.error('Create post in category error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get category statistics
+// @route   GET /api/forum/categories/:category/stats
+// @access  Public
+exports.getCategoryStats = async (req, res) => {
+  try {
+    const { ForumPost, ForumComment } = db.models;
+    const { category } = req.params;
+
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category'
+      });
+    }
+
+    // Get post counts by type
+    const postStats = await ForumPost.findAll({
+      where: { category },
+      attributes: [
+        'type',
+        [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'count']
+      ],
+      group: ['type'],
+      raw: true
+    });
+
+    // Get total posts count
+    const totalPosts = await ForumPost.count({
+      where: { category }
+    });
+
+    // Get total comments count
+    const totalComments = await ForumComment.count({
+      include: [{
+        model: ForumPost,
+        where: { category },
+        attributes: []
+      }]
+    });
+
+    // Get recent activity (posts from last 7 days)
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    const recentPosts = await ForumPost.count({
+      where: {
+        category,
+        createdAt: {
+          [Op.gte]: weekAgo
+        }
+      }
+    });
+
+    const categoryNames = {
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
+    };
+
+    res.status(200).json({
+      success: true,
+      category,
+      categoryName: categoryNames[category],
+      stats: {
+        totalPosts,
+        totalComments,
+        recentPosts,
+        postsByType: postStats.reduce((acc, stat) => {
+          acc[stat.type] = parseInt(stat.count);
+          return acc;
+        }, {})
+      }
+    });
+  } catch (error) {
+    console.error('Get category stats error:', error);
     res.status(500).json({
       success: false,
       message: error.message
