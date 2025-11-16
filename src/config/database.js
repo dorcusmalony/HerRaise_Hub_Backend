@@ -397,13 +397,15 @@ const connectDB = async () => {
     views: { type: DataTypes.INTEGER, defaultValue: 0 },
     viewers: { type: DataTypes.JSONB, defaultValue: [] },
     isLocked: { type: DataTypes.BOOLEAN, defaultValue: false },
-    attachments: { type: DataTypes.JSONB, defaultValue: [] }
+    attachments: { type: DataTypes.JSONB, defaultValue: [] },
+    mentions: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
 
   const ForumComment = sequelize.define('ForumComment', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     content: { type: DataTypes.TEXT, allowNull: false },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
+    mentions: { type: DataTypes.JSONB, defaultValue: [] },
     parentCommentId: { type: DataTypes.UUID, allowNull: true }
   }, { timestamps: true });
 

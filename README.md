@@ -1,31 +1,87 @@
 # HerRaise_Hub_Backend
 
-Production-ready Node.js backend for the HerRaise Hub platform — REST API built with Express and Sequelize (Postgres).  
-This README summarizes the codebase, quick-start steps, API surface, frontend integration guidance (login/auth), deployment notes and troubleshooting.
+Production-ready Node.js backend for the HerRaise Hub platform — Comprehensive REST API built with Express and Sequelize (Postgres) supporting multilingual content, forum system, and real-time notifications.
 
 ---
 
-## Highlights
-- Express.js API with structured routers and controllers.
-- Sequelize + PostgreSQL (models and automated DB-creation logic in [src/config/database.js](HerRaise_Hub_Backend/src/config/database.js)).
-- JWT-based authentication (tokens returned in login/register responses).
-- Role-based authorization middleware at [src/middleware/auth.js](HerRaise_Hub_Backend/src/middleware/auth.js).
-- Important routes:
-  - Auth: [src/routes/authRoutes.js](HerRaise_Hub_Backend/src/routes/authRoutes.js)
-  - Goals: [src/routes/goalRoutes.js](HerRaise_Hub_Backend/src/routes/goalRoutes.js)
-  - Resources: [src/routes/resourceRoutes.js](HerRaise_Hub_Backend/src/routes/resourceRoutes.js)
-  - Reports: [src/routes/reportRoutes.js](HerRaise_Hub_Backend/src/routes/reportRoutes.js)
-- App entry: [server.js](HerRaise_Hub_Backend/server.js) and [src/app.js](HerRaise_Hub_Backend/src/app.js)
+## Key Features
+
+### 🌍 **Multilingual Support**
+- **Arabic/English** content fields across all models
+- **Language detection** middleware
+- **RTL text direction** support
+- **Localized API responses**
+
+### 💬 **Forum System**
+- **6 Categories**: Mental Health, Leadership, Education, Equality Rights, Career Skills, Women's Health
+- **Post Types**: Discussion, Question, Announcement
+- **User Interactions**: Likes, Comments, Views tracking
+- **User Tagging**: @mention system like Facebook
+- **Nested Comments**: Reply system with notifications
+
+### 🔔 **Notification System**
+- **Real-time notifications** via Socket.IO
+- **Push notifications** with web-push
+- **Email notifications** via Nodemailer
+- **Notification types**: Forum activity, opportunities, system updates
+
+### 📁 **File Management**
+- **Cloudinary integration** for media uploads
+- **Multiple file types** support
+- **Image optimization** and resizing
+
+### 👥 **User Management**
+- **JWT authentication** with role-based access
+- **User profiles** with activity tracking
+- **Mentor/Mentee** system
+- **Admin dashboard** with analytics
+
+### 🎯 **Opportunity Tracking**
+- **Scholarships, internships, jobs**
+- **Application tracking**
+- **Deadline reminders**
+- **Interest bookmarking**
 
 ---
 
-## Tech stack
-- Node 18
-- Express 5
-- Sequelize ORM + pg (Postgres)
-- JWT (jsonwebtoken)
-- Bcrypt for password hashing
-- Docker / docker-compose (optional)
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+
+### Forum
+- `GET /api/forum/categories` - Get all categories
+- `GET /api/forum/categories/:category/posts` - Get posts by category
+- `POST /api/forum/posts` - Create new post
+- `POST /api/forum/posts/:id/comments` - Add comment
+- `POST /api/forum/posts/:id/like` - Like/unlike post
+- `GET /api/forum/categories/:category/taggable-users` - Get users for tagging
+
+### Multilingual
+- `GET /api/translations?lang=ar` - Get UI translations
+- `POST /api/switch-language` - Switch user language
+
+### Notifications
+- `GET /api/notifications` - Get user notifications
+- `POST /api/notifications/mark-read` - Mark as read
+- `POST /api/push-notifications/subscribe` - Subscribe to push notifications
+
+---
+
+## Tech Stack
+- **Node.js 18+** - Runtime environment
+- **Express.js** - Web framework
+- **Sequelize ORM** - Database ORM
+- **PostgreSQL** - Primary database
+- **Socket.IO** - Real-time communication
+- **Cloudinary** - Media storage
+- **JWT** - Authentication
+- **Bcrypt** - Password hashing
+- **Nodemailer** - Email service
+- **Web-push** - Push notifications
+- **Docker** - Containerization
 
 ---
 
