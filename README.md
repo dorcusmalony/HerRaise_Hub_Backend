@@ -6,37 +6,37 @@ Production-ready Node.js backend for the HerRaise Hub platform — Comprehensive
 
 ## Key Features
 
-### 🌍 **Multilingual Support**
+###  **Multilingual Support**
 - **Arabic/English** content fields across all models
 - **Language detection** middleware
 - **RTL text direction** support
 - **Localized API responses**
 
-### 💬 **Forum System**
+###  **Forum System**
 - **6 Categories**: Mental Health, Leadership, Education, Equality Rights, Career Skills, Women's Health
 - **Post Types**: Discussion, Question, Announcement
 - **User Interactions**: Likes, Comments, Views tracking
 - **User Tagging**: @mention system like Facebook
 - **Nested Comments**: Reply system with notifications
 
-### 🔔 **Notification System**
+###  **Notification System**
 - **Real-time notifications** via Socket.IO
 - **Push notifications** with web-push
 - **Email notifications** via Nodemailer
 - **Notification types**: Forum activity, opportunities, system updates
 
-### 📁 **File Management**
+###  **File Management**
 - **Cloudinary integration** for media uploads
 - **Multiple file types** support
 - **Image optimization** and resizing
 
-### 👥 **User Management**
+###  **User Management**
 - **JWT authentication** with role-based access
 - **User profiles** with activity tracking
 - **Mentor/Mentee** system
 - **Admin dashboard** with analytics
 
-### 🎯 **Opportunity Tracking**
+###  **Opportunity Tracking**
 - **Scholarships, internships, jobs**
 - **Application tracking**
 - **Deadline reminders**
@@ -105,7 +105,7 @@ Prerequisites:
 4. Or use Docker (recommended for parity)
    docker-compose up --build
 
-The server exposes the API on http://localhost:5000/api and health check at /health. See start logic in [server.js](HerRaise_Hub_Backend/server.js).
+The server exposes the API on http://localhost:10000/api and health check at /health. See start logic in [server.js](HerRaise_Hub_Backend/server.js).
 
 ---
 
@@ -141,9 +141,9 @@ npm start
 ```
 
 **Why Both Approaches Exist:**
-- ✅ Auto-sync: Fast development, automatic schema updates
-- ✅ Migrations: Production safety, version control, rollback capability
-- 🎯 Best practice: Use auto-sync in dev, migrations in production
+-  Auto-sync: Fast development, automatic schema updates
+-  Migrations: Production safety, version control, rollback capability
+-  Best practice: Use auto-sync in dev, migrations in production
 
 ---
 
