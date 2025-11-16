@@ -57,6 +57,7 @@ router.get('/', async (req, res) => {
       content: post.content,
       category: post.category,
       fileUrl: post.fileUrl,
+      externalLink: post.externalLink,
       author: post.authorData,
       createdAt: post.createdAt,
       ShareZoneComments: post.ShareZoneComments || []
@@ -112,6 +113,7 @@ router.get('/:id', async (req, res) => {
       content: post.content,
       category: post.category,
       fileUrl: post.fileUrl,
+      externalLink: post.externalLink,
       author: post.authorData,
       createdAt: post.createdAt,
       ShareZoneComments: post.ShareZoneComments || []
@@ -121,10 +123,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/sharezone - Create new ShareZone content with file upload
+// POST /api/sharezone - Create new ShareZone content with file upload or external link
 router.post('/', protect, upload.single('file'), async (req, res) => {
   try {
-    const { title, content, category } = req.body;
+    const { title, content, category, externalLink } = req.body;
     
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
@@ -153,6 +155,7 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       content: content || '',
       category,
       fileUrl,
+      externalLink: externalLink || null,
       author: req.user.id
     });
 
@@ -170,6 +173,7 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       content: postWithAuthor.content,
       category: postWithAuthor.category,
       fileUrl: postWithAuthor.fileUrl,
+      externalLink: postWithAuthor.externalLink,
       author: postWithAuthor.authorData,
       createdAt: postWithAuthor.createdAt
     });
@@ -181,7 +185,7 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
 // PUT /api/sharezone/:id - Update ShareZone post
 router.put('/:id', protect, upload.single('file'), async (req, res) => {
   try {
-    const { title, content, category } = req.body;
+    const { title, content, category, externalLink } = req.body;
     
     const post = await models.ShareZone.findByPk(req.params.id);
     if (!post) {
@@ -200,6 +204,7 @@ router.put('/:id', protect, upload.single('file'), async (req, res) => {
     if (title) post.title = title;
     if (content !== undefined) post.content = content;
     if (category) post.category = category;
+    if (externalLink !== undefined) post.externalLink = externalLink;
 
     if (req.file) {
       try {

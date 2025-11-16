@@ -555,6 +555,9 @@ const connectDB = async () => {
     fileUrl: { 
       type: DataTypes.TEXT 
     },
+    externalLink: {
+      type: DataTypes.TEXT
+    },
     author: { 
       type: DataTypes.UUID, 
       allowNull: false 
