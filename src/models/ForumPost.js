@@ -26,7 +26,7 @@ module.exports = (sequelize) => {
       defaultValue: 'discussion'
     },
     category: {
-      type: DataTypes.ENUM('personal-growth', 'mental-health', 'education-study', 'career-future')
+      type: DataTypes.ENUM('mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health')
     },
     tags: {
       type: DataTypes.JSON,

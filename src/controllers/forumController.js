@@ -46,7 +46,7 @@ exports.getPostsByCategory = async (req, res) => {
     const { sort = 'recent', limit = 10 } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
@@ -142,7 +142,7 @@ exports.getPosts = async (req, res) => {
     if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
       where.type = filter;
     }
-    if (category && ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'].includes(category)) {
+    if (category && ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'].includes(category)) {
       where.category = category;
     }
 
@@ -579,6 +579,8 @@ exports.addComment = async (req, res) => {
       },
       req.user.id
     );
+
+
 
     // Check if replying user is the post author
     const isPostAuthor = post.authorId.toString() === req.user.id;
