@@ -728,6 +728,8 @@ exports.addComment = async (req, res) => {
       console.log(`📢 Reply notification sent to ${parentComment.author?.name}`);
     }
 
+
+
     // Check if replying user is the post author
     const isPostAuthor = post.authorId.toString() === req.user.id;
 
