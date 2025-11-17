@@ -145,7 +145,4 @@ exports.createPostMultilingual = async (req, res) => {
   }
 };
 
-module.exports = {
-  getPostsMultilingual,
-  createPostMultilingual
-};
+// Functions already exported above with exports.
