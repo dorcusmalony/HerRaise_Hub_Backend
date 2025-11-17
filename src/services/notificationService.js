@@ -200,6 +200,47 @@ class NotificationService {
     );
   }
 
+  // Create comment notification (for frontend API calls)
+  static async createCommentNotification(postId, commentId, authorId, authorName, postTitle) {
+    try {
+      const { ForumPost, User } = db.models;
+      
+      // Get the post to find the post author
+      const post = await ForumPost.findByPk(postId, {
+        include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
+      });
+      
+      if (!post) {
+        console.error('Post not found for comment notification');
+        return;
+      }
+      
+      // Don't notify if commenting on own post
+      if (post.authorId.toString() === authorId.toString()) {
+        return;
+      }
+      
+      await this.createNotification(
+        post.authorId,
+        'forum_comment',
+        '💬 New Comment on Your Post',
+        `${authorName} commented on your post "${postTitle.substring(0, 40)}${postTitle.length > 40 ? '...' : ''}"`,
+        {
+          postId,
+          commentId,
+          commentAuthor: authorName,
+          authorId
+        },
+        commentId,
+        `/forum/posts/${postId}`
+      );
+      
+      console.log(`📢 Comment notification sent to ${post.author?.name}`);
+    } catch (error) {
+      console.error('Error creating comment notification:', error);
+    }
+  }
+
   // Get user notifications
   static async getUserNotifications(userId, limit = 20, offset = 0) {
     try {

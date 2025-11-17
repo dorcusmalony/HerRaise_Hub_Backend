@@ -332,7 +332,7 @@ exports.getPosts = async (req, res) => {
 exports.createPost = async (req, res) => {
   try {
     const { ForumPost, User } = db.models;
-    const { title, content, type, tags, title_ar, content_ar, attachments, category, mentions } = req.body;
+    const { title, content, type, tags, title_ar, content_ar, attachments, category } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({
@@ -358,7 +358,7 @@ exports.createPost = async (req, res) => {
       category: category || null,
       tags: Array.isArray(tags) ? tags : [],
       attachments: Array.isArray(attachments) ? attachments : [],
-      mentions: Array.isArray(mentions) ? mentions : [],
+
       authorId: req.user.id
     });
 
@@ -621,13 +621,24 @@ exports.deletePost = async (req, res) => {
 // @access  Private
 exports.addComment = async (req, res) => {
   try {
+    console.log('📝 Adding comment to post:', req.params.id);
+    console.log('📝 Comment data:', req.body);
+    console.log('📝 User:', req.user?.id, req.user?.name);
+    
     const { ForumComment, ForumPost, User, Notification } = db.models;
-    const { content, parentCommentId, content_ar, mentions } = req.body;
+    const { content, parentCommentId, content_ar } = req.body;
 
     if (!content) {
       return res.status(400).json({
         success: false,
         message: 'Comment content is required'
+      });
+    }
+    
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User authentication required'
       });
     }
 
@@ -659,14 +670,23 @@ exports.addComment = async (req, res) => {
     }
 
     // Create comment (can be a reply if parentCommentId is provided)
-    const comment = await ForumComment.create({
+    console.log('📝 Creating comment with data:', {
       content,
       content_ar: content_ar || null,
-      mentions: Array.isArray(mentions) ? mentions : [],
       postId: req.params.id,
       authorId: req.user.id,
       parentCommentId: parentCommentId || null
     });
+    
+    const comment = await ForumComment.create({
+      content,
+      content_ar: content_ar || null,
+      postId: req.params.id,
+      authorId: req.user.id,
+      parentCommentId: parentCommentId || null
+    });
+    
+    console.log('✅ Comment created successfully:', comment.id);
 
     // Load with author info and replies
     await comment.reload({

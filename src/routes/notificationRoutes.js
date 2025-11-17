@@ -92,4 +92,74 @@ router.put('/mark-all-read', protect, async (req, res) => {
   }
 });
 
+// @desc    Create comment notification
+// @route   POST /api/notifications/comment
+// @access  Private
+router.post('/comment', protect, async (req, res) => {
+  try {
+    const { postId, commentId, postTitle } = req.body;
+    
+    if (!postId || !commentId || !postTitle) {
+      return res.status(400).json({
+        success: false,
+        message: 'postId, commentId, and postTitle are required'
+      });
+    }
+    
+    await NotificationService.createCommentNotification(
+      postId,
+      commentId,
+      req.user.id,
+      req.user.name,
+      postTitle
+    );
+    
+    res.json({
+      success: true,
+      message: 'Comment notification created'
+    });
+  } catch (error) {
+    console.error('Create comment notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @desc    Create comment notification (alternative endpoint)
+// @route   POST /api/notifications/createCommentNotification
+// @access  Private
+router.post('/createCommentNotification', protect, async (req, res) => {
+  try {
+    const { postId, commentId, postTitle } = req.body;
+    
+    if (!postId || !commentId || !postTitle) {
+      return res.status(400).json({
+        success: false,
+        message: 'postId, commentId, and postTitle are required'
+      });
+    }
+    
+    await NotificationService.createCommentNotification(
+      postId,
+      commentId,
+      req.user.id,
+      req.user.name,
+      postTitle
+    );
+    
+    res.json({
+      success: true,
+      message: 'Comment notification created'
+    });
+  } catch (error) {
+    console.error('Create comment notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

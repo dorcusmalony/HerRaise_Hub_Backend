@@ -4,12 +4,40 @@ let io;
 const userSockets = new Map(); // Map userId to socket.id
 
 function initializeSocket(server) {
+  const allowedOrigins = [
+    'https://her-raise-hub.vercel.app',
+    'http://localhost:5173',
+    'https://her-raise-qywpgby4w-dorcus-projects-926b115e.vercel.app',
+    'https://her-raise-pyaoi58m4-dorcus-projects-926b115e.vercel.app',
+    'http://localhost:10000',
+    'https://herraise-hub-backend.onrender.com'
+  ];
+  
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app',
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, etc.)
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost
+        if (origin.includes('localhost')) return callback(null, true);
+        
+        // Allow vercel.app domains
+        if (origin.includes('.vercel.app')) return callback(null, true);
+        
+        // Allow render.com domains
+        if (origin.includes('.onrender.com')) return callback(null, true);
+        
+        // Allow specific origins
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        
+        callback(null, true); // Allow all for now to fix connection issues
+      },
       methods: ['GET', 'POST'],
       credentials: true
-    }
+    },
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
   });
 
   io.on('connection', (socket) => {
