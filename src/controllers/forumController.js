@@ -28,10 +28,12 @@ exports.getCategories = (_req, res) => {
   res.status(200).json({
     success: true,
     categories: [
-      { id: 'personal-growth', name: 'Personal Growth & Learning' },
-      { id: 'mental-health', name: 'Mental Health & Wellbeing' },
-      { id: 'education-study', name: 'Education & Study Tips' },
-      { id: 'career-future', name: 'Career & Future Opportunities' }
+      { id: 'mental-health', name: 'Mental Health & Wellbeing', icon: '🧠' },
+      { id: 'leadership', name: 'Leadership & Empowerment', icon: '👑' },
+      { id: 'education-study', name: 'Education & Learning', icon: '📚' },
+      { id: 'equality-rights', name: 'Equality, Equity & Rights', icon: '⚖️' },
+      { id: 'career-skills', name: 'Career & Skills', icon: '💼' },
+      { id: 'womens-health', name: "Women's Health", icon: '🌸' }
     ]
   });
 };
@@ -43,7 +45,7 @@ exports.getPostsByCategory = async (req, res) => {
   try {
     const { ForumPost, User, ForumComment } = db.models;
     const { category } = req.params;
-    const { sort = 'recent', limit = 10 } = req.query;
+    const { sort = 'recent', limit = 20, page = 1, type = 'all' } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
     const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
@@ -54,21 +56,41 @@ exports.getPostsByCategory = async (req, res) => {
       });
     }
 
+    // Category display names
+    const categoryNames = {
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
+    };
+
     let order = [['createdAt', 'DESC']];
     if (sort === 'popular') {
       order = [['views', 'DESC'], ['createdAt', 'DESC']];
+    } else if (sort === 'most-liked') {
+      order = [['createdAt', 'DESC']];
     }
 
-    const posts = await ForumPost.findAll({
-      where: {
-        [Op.or]: [
-          { category },
-          { category: null }
-        ],
-        type: ['discussion', 'question', 'announcement']
-      },
+    // Build where clause
+    const where = {
+      category,
+      type: ['discussion', 'question', 'announcement']
+    };
+    
+    if (type !== 'all' && ['discussion', 'question', 'announcement'].includes(type)) {
+      where.type = type;
+    }
+
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const limitNum = parseInt(limit, 10) || 20;
+
+    const { count, rows: posts } = await ForumPost.findAndCountAll({
+      where,
       order,
-      limit: parseInt(limit, 10) || 10,
+      limit: limitNum,
+      offset,
       include: [
         {
           model: User,
@@ -84,6 +106,16 @@ exports.getPostsByCategory = async (req, res) => {
               model: User,
               as: 'author',
               attributes: ['id', 'name', 'profilePicture', 'role']
+            },
+            {
+              model: ForumComment,
+              as: 'replies',
+              include: [{
+                model: User,
+                as: 'author',
+                attributes: ['id', 'name', 'profilePicture', 'role']
+              }],
+              order: [['createdAt', 'ASC']]
             }
           ],
           order: [['createdAt', 'ASC']]
@@ -91,18 +123,63 @@ exports.getPostsByCategory = async (req, res) => {
       ]
     });
 
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+    
     const formattedPosts = posts.map(post => {
       const postData = post.toJSON();
+      postData.cardColor = colors[post.id.charCodeAt(0) % colors.length];
       postData.title = getLocalizedContent(postData, 'title', lang);
       postData.content = getLocalizedContent(postData, 'content', lang);
+      postData.categoryName = categoryNames[category];
+      postData.publishedFrom = `Published from ${categoryNames[category]}`;
+      
+      // Include both language versions for frontend switching
+      postData.title_en = postData.title;
+      postData.title_ar = postData.title_ar || '';
+      postData.content_en = postData.content;
+      postData.content_ar = postData.content_ar || '';
+      
+      // Localize comments
+      if (postData.ForumComments) {
+        postData.ForumComments = postData.ForumComments.map(comment => {
+          comment.content = getLocalizedContent(comment, 'content', lang);
+          comment.content_en = comment.content;
+          comment.content_ar = comment.content_ar || '';
+          if (comment.replies) {
+            comment.replies = comment.replies.map(reply => {
+              reply.content = getLocalizedContent(reply, 'content', lang);
+              reply.content_en = reply.content;
+              reply.content_ar = reply.content_ar || '';
+              return reply;
+            });
+          }
+          return comment;
+        });
+      }
+      
+      const likesCount = (postData.likes || []).length;
+      const commentsCount = (postData.ForumComments || []).length;
+      const viewsCount = postData.views || 0;
+      
       return {
         ...postData,
-        likesCount: (postData.likes || []).length,
-        commentsCount: (postData.ForumComments || []).length,
-        viewsCount: postData.views || 0,
-        attachmentsCount: (postData.attachments || []).length
+        likesCount,
+        commentsCount,
+        viewsCount,
+        viewersCount: (postData.viewers || []).length,
+        attachmentsCount: (postData.attachments || []).length,
+        hasAttachments: (postData.attachments || []).length > 0,
+        likesText: `${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`,
+        commentsText: `${commentsCount} ${commentsCount === 1 ? 'comment' : 'comments'}`,
+        viewsText: `${viewsCount} ${viewsCount === 1 ? 'view' : 'views'}`,
+        isLikedByUser: req.user ? (postData.likes || []).includes(req.user.id) : false
       };
     });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(count / limitNum);
+    const hasNextPage = parseInt(page, 10) < totalPages;
+    const hasPrevPage = parseInt(page, 10) > 1;
 
     // Disable caching
     res.set({
@@ -114,8 +191,17 @@ exports.getPostsByCategory = async (req, res) => {
     res.status(200).json({
       success: true,
       category,
+      categoryName: categoryNames[category],
       count: formattedPosts.length,
+      totalCount: count,
       posts: formattedPosts,
+      pagination: {
+        currentPage: parseInt(page, 10),
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+        limit: limitNum
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -246,9 +332,16 @@ exports.getPosts = async (req, res) => {
 exports.createPost = async (req, res) => {
   try {
     const { ForumPost, User } = db.models;
-    const { title, content, type, tags, title_ar, content_ar, attachments, category } = req.body;
+    const { title, content, type, tags, title_ar, content_ar, attachments, category, mentions } = req.body;
 
-    const validCategories = ['personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'];
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and content are required'
+      });
+    }
+
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
     if (category && !validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
@@ -265,6 +358,7 @@ exports.createPost = async (req, res) => {
       category: category || null,
       tags: Array.isArray(tags) ? tags : [],
       attachments: Array.isArray(attachments) ? attachments : [],
+      mentions: Array.isArray(mentions) ? mentions : [],
       authorId: req.user.id
     });
 
@@ -280,10 +374,12 @@ exports.createPost = async (req, res) => {
 
     // Send notification to all users about new post
     const categoryNames = {
-      'personal-growth': 'Personal Growth & Learning',
-      'mental-health': 'Mental Health & Wellbeing', 
-      'education-study': 'Education & Study Tips',
-      'career-future': 'Career & Future Opportunities'
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
     };
     
     const categoryName = category ? categoryNames[category] : 'General Discussion';
@@ -303,11 +399,17 @@ exports.createPost = async (req, res) => {
     );
     console.log('✅ Forum post notification sent');
 
+    // Format response with category info
+    const postData = post.toJSON();
+    postData.categoryName = categoryName;
+    postData.publishedFrom = category ? `Published from ${categoryName}` : null;
+
     res.status(201).json({
       success: true,
-      post
+      post: postData
     });
   } catch (error) {
+    console.error('Create post error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -399,14 +501,22 @@ exports.getPost = async (req, res) => {
         return comment;
       });
     }
+    const likesCount = (postData.likes || []).length;
+    const commentsCount = (postData.ForumComments || []).length;
+    const viewsCount = postData.views || 0;
+    
     const formattedPost = {
       ...postData,
-      likesCount: (postData.likes || []).length,
-      commentsCount: (postData.ForumComments || []).length,
-      viewsCount: postData.views,
+      likesCount,
+      commentsCount,
+      viewsCount,
       viewersCount: (postData.viewers || []).length,
       attachmentsCount: (postData.attachments || []).length,
-      hasAttachments: (postData.attachments || []).length > 0
+      hasAttachments: (postData.attachments || []).length > 0,
+      likesText: `${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`,
+      commentsText: `${commentsCount} ${commentsCount === 1 ? 'comment' : 'comments'}`,
+      viewsText: `${viewsCount} ${viewsCount === 1 ? 'view' : 'views'}`,
+      isLikedByUser: req.user ? (postData.likes || []).includes(req.user.id) : false
     };
 
     res.status(200).json({
@@ -511,8 +621,8 @@ exports.deletePost = async (req, res) => {
 // @access  Private
 exports.addComment = async (req, res) => {
   try {
-    const { ForumComment, ForumPost, User } = db.models;
-    const { content, parentCommentId, content_ar } = req.body;
+    const { ForumComment, ForumPost, User, Notification } = db.models;
+    const { content, parentCommentId, content_ar, mentions } = req.body;
 
     if (!content) {
       return res.status(400).json({
@@ -522,7 +632,9 @@ exports.addComment = async (req, res) => {
     }
 
     // Check if post exists
-    const post = await ForumPost.findByPk(req.params.id);
+    const post = await ForumPost.findByPk(req.params.id, {
+      include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
+    });
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -538,10 +650,19 @@ exports.addComment = async (req, res) => {
       });
     }
 
+    // Get parent comment if replying
+    let parentComment = null;
+    if (parentCommentId) {
+      parentComment = await ForumComment.findByPk(parentCommentId, {
+        include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
+      });
+    }
+
     // Create comment (can be a reply if parentCommentId is provided)
     const comment = await ForumComment.create({
       content,
       content_ar: content_ar || null,
+      mentions: Array.isArray(mentions) ? mentions : [],
       postId: req.params.id,
       authorId: req.user.id,
       parentCommentId: parentCommentId || null
@@ -563,22 +684,49 @@ exports.addComment = async (req, res) => {
       ]
     });
 
-    // Send notification to post author about new comment
-    const NotificationService = require('../services/notificationService');
-    await NotificationService.notifyNewComment(
-      {
-        id: comment.id,
-        author: {
-          name: req.user.name
-        }
-      },
-      {
-        id: post.id,
-        title: post.title,
-        authorId: post.authorId
-      },
-      req.user.id
-    );
+    // Send notification to post author (if not commenting on own post)
+    if (post.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: post.authorId,
+        type: 'forum_comment',
+        title: parentCommentId ? 'New reply on your post' : 'New comment on your post',
+        message: parentCommentId 
+          ? `${req.user.name} replied to a comment on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"` 
+          : `${req.user.name} commented on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
+        data: {
+          postId: post.id,
+          postTitle: post.title,
+          commentId: comment.id,
+          commenterName: req.user.name,
+          commenterId: req.user.id,
+          isReply: !!parentCommentId
+        },
+        relatedId: post.id,
+        link: `/forum/posts/${post.id}`
+      });
+      console.log(`📢 Comment notification sent to ${post.author?.name}`);
+    }
+
+    // Send notification to parent comment author (if replying and not to self)
+    if (parentComment && parentComment.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: parentComment.authorId,
+        type: 'forum_reply',
+        title: 'Someone replied to your comment',
+        message: `${req.user.name} replied to your comment on "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
+        data: {
+          postId: post.id,
+          postTitle: post.title,
+          commentId: comment.id,
+          parentCommentId: parentCommentId,
+          replierName: req.user.name,
+          replierId: req.user.id
+        },
+        relatedId: post.id,
+        link: `/forum/posts/${post.id}`
+      });
+      console.log(`📢 Reply notification sent to ${parentComment.author?.name}`);
+    }
 
 
 
@@ -591,7 +739,8 @@ exports.addComment = async (req, res) => {
         ...comment.toJSON(),
         likesCount: (comment.likes || []).length,
         isPostAuthorReply: isPostAuthor && parentCommentId !== null
-      }
+      },
+      message: parentCommentId ? 'Reply added successfully' : 'Comment added successfully'
     });
   } catch (error) {
     console.error('Add comment error:', error);
@@ -687,9 +836,11 @@ exports.deleteComment = async (req, res) => {
 // @access  Private
 exports.togglePostLike = async (req, res) => {
   try {
-    const { ForumPost } = db.models;
+    const { ForumPost, User, Notification } = db.models;
     
-    const post = await ForumPost.findByPk(req.params.id);
+    const post = await ForumPost.findByPk(req.params.id, {
+      include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
+    });
 
     if (!post) {
       return res.status(404).json({
@@ -701,6 +852,7 @@ exports.togglePostLike = async (req, res) => {
     const likes = post.likes || [];
     const userIdStr = req.user.id.toString();
     const likeIndex = likes.findIndex(id => id.toString() === userIdStr);
+    const isLiking = likeIndex === -1;
 
     if (likeIndex > -1) {
       // Unlike
@@ -713,25 +865,30 @@ exports.togglePostLike = async (req, res) => {
     post.likes = likes;
     await post.save();
 
-    // Send notification for new like (not unlike)
-    if (likeIndex === -1) {
-      const NotificationService = require('../services/notificationService');
-      await NotificationService.notifyPostLike(
-        {
-          id: post.id,
-          title: post.title,
-          authorId: post.authorId
+    // Send notification for new like (not unlike) and not to self
+    if (isLiking && post.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: post.authorId,
+        type: 'forum_like',
+        title: 'Someone liked your post',
+        message: `${req.user.name} liked your post "${post.title.substring(0, 50)}${post.title.length > 50 ? '...' : ''}"`,
+        data: {
+          postId: post.id,
+          postTitle: post.title,
+          likerName: req.user.name,
+          likerId: req.user.id
         },
-        req.user.id,
-        req.user.name
-      );
+        relatedId: post.id,
+        link: `/forum/posts/${post.id}`
+      });
+      console.log(`📢 Like notification sent to ${post.author?.name} for post: ${post.title}`);
     }
 
     res.status(200).json({
       success: true,
-      liked: likeIndex === -1,
+      liked: isLiking,
       likesCount: likes.length,
-      likes: likes
+      message: isLiking ? `You liked this post (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})` : `You unliked this post (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})`
     });
   } catch (error) {
     console.error('Toggle post like error:', error);
@@ -747,9 +904,14 @@ exports.togglePostLike = async (req, res) => {
 // @access  Private
 exports.toggleCommentLike = async (req, res) => {
   try {
-    const { ForumComment } = db.models;
+    const { ForumComment, User, Notification, ForumPost } = db.models;
     
-    const comment = await ForumComment.findByPk(req.params.id);
+    const comment = await ForumComment.findByPk(req.params.id, {
+      include: [
+        { model: User, as: 'author', attributes: ['id', 'name'] },
+        { model: ForumPost, attributes: ['id', 'title'] }
+      ]
+    });
 
     if (!comment) {
       return res.status(404).json({
@@ -761,6 +923,7 @@ exports.toggleCommentLike = async (req, res) => {
     const likes = comment.likes || [];
     const userIdStr = req.user.id.toString();
     const likeIndex = likes.findIndex(id => id.toString() === userIdStr);
+    const isLiking = likeIndex === -1;
 
     if (likeIndex > -1) {
       // Unlike
@@ -773,11 +936,31 @@ exports.toggleCommentLike = async (req, res) => {
     comment.likes = likes;
     await comment.save();
 
+    // Send notification for new like (not unlike) and not to self
+    if (isLiking && comment.authorId.toString() !== req.user.id.toString()) {
+      await Notification.create({
+        userId: comment.authorId,
+        type: 'forum_comment_like',
+        title: 'Someone liked your comment',
+        message: `${req.user.name} liked your comment on "${comment.ForumPost?.title?.substring(0, 40)}${comment.ForumPost?.title?.length > 40 ? '...' : ''}"`,
+        data: {
+          commentId: comment.id,
+          postId: comment.postId,
+          postTitle: comment.ForumPost?.title,
+          likerName: req.user.name,
+          likerId: req.user.id
+        },
+        relatedId: comment.postId,
+        link: `/forum/posts/${comment.postId}`
+      });
+      console.log(`📢 Comment like notification sent to ${comment.author?.name}`);
+    }
+
     res.status(200).json({
       success: true,
-      liked: likeIndex === -1,
+      liked: isLiking,
       likesCount: likes.length,
-      likes: likes
+      message: isLiking ? `You liked this comment (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})` : `You unliked this comment (${likes.length} ${likes.length === 1 ? 'like' : 'likes'})`
     });
   } catch (error) {
     console.error('Toggle comment like error:', error);
@@ -818,6 +1001,176 @@ exports.createFeedbackPost = async (req, res) => {
       post
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Create post in specific category
+// @route   POST /api/forum/categories/:category/posts
+// @access  Private
+exports.createPostInCategory = async (req, res) => {
+  try {
+    const { ForumPost, User } = db.models;
+    const { category } = req.params;
+    const { title, content, type, tags, title_ar, content_ar, attachments } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and content are required'
+      });
+    }
+
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category'
+      });
+    }
+
+    const post = await ForumPost.create({
+      title,
+      content,
+      title_ar: title_ar || null,
+      content_ar: content_ar || null,
+      type: type || 'discussion',
+      category,
+      tags: Array.isArray(tags) ? tags : [],
+      attachments: Array.isArray(attachments) ? attachments : [],
+      authorId: req.user.id
+    });
+
+    await post.reload({
+      include: [{
+        model: User,
+        as: 'author',
+        attributes: ['id', 'name', 'profilePicture', 'role']
+      }]
+    });
+
+    const categoryNames = {
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
+    };
+
+    // Send notification
+    const NotificationService = require('../services/notificationService');
+    await NotificationService.notifyNewForumQuestion(
+      {
+        id: post.id,
+        title: title,
+        category: categoryNames[category],
+        author: {
+          name: req.user.name
+        }
+      },
+      req.user.id
+    );
+
+    const postData = post.toJSON();
+    postData.categoryName = categoryNames[category];
+    postData.publishedFrom = `Published from ${categoryNames[category]}`;
+
+    res.status(201).json({
+      success: true,
+      post: postData
+    });
+  } catch (error) {
+    console.error('Create post in category error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get category statistics
+// @route   GET /api/forum/categories/:category/stats
+// @access  Public
+exports.getCategoryStats = async (req, res) => {
+  try {
+    const { ForumPost, ForumComment } = db.models;
+    const { category } = req.params;
+
+    const validCategories = ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category'
+      });
+    }
+
+    // Get post counts by type
+    const postStats = await ForumPost.findAll({
+      where: { category },
+      attributes: [
+        'type',
+        [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'count']
+      ],
+      group: ['type'],
+      raw: true
+    });
+
+    // Get total posts count
+    const totalPosts = await ForumPost.count({
+      where: { category }
+    });
+
+    // Get total comments count
+    const totalComments = await ForumComment.count({
+      include: [{
+        model: ForumPost,
+        where: { category },
+        attributes: []
+      }]
+    });
+
+    // Get recent activity (posts from last 7 days)
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    const recentPosts = await ForumPost.count({
+      where: {
+        category,
+        createdAt: {
+          [Op.gte]: weekAgo
+        }
+      }
+    });
+
+    const categoryNames = {
+      'mental-health': 'Mental Health & Wellbeing',
+      'leadership': 'Leadership & Empowerment', 
+      'education-study': 'Education & Learning',
+      'equality-rights': 'Equality, Equity & Rights',
+      'career-skills': 'Career & Skills',
+      'womens-health': "Women's Health"
+    };
+
+    res.status(200).json({
+      success: true,
+      category,
+      categoryName: categoryNames[category],
+      stats: {
+        totalPosts,
+        totalComments,
+        recentPosts,
+        postsByType: postStats.reduce((acc, stat) => {
+          acc[stat.type] = parseInt(stat.count);
+          return acc;
+        }, {})
+      }
+    });
+  } catch (error) {
+    console.error('Get category stats error:', error);
     res.status(500).json({
       success: false,
       message: error.message

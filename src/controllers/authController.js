@@ -469,17 +469,26 @@ exports.getMe = async (req, res) => {
 
 // @desc    Forgot password
 // @route   POST /api/auth/forgot-password
+// @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const User = await getUserModel();
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
 
+    const User = await getUserModel();
     const user = await User.findOne({ where: { email } });
 
+    // Always return success to prevent email enumeration
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'No user found with that email'
+      return res.status(200).json({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.'
       });
     }
 
@@ -488,28 +497,94 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     // Send password reset email
-    await sendPasswordResetEmail(user.email, resetToken, user.name);
+    try {
+      await sendPasswordResetEmail(user.email, resetToken, user.name);
+      console.log(`Password reset email sent to: ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError.message);
+      // Clear the reset token if email fails
+      user.resetPasswordToken = null;
+      user.resetPasswordExpire = null;
+      await user.save();
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send password reset email. Please try again.'
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Password reset token sent',
-      resetToken // remove in production
+      message: 'If an account with that email exists, a password reset link has been sent.'
     });
   } catch (error) {
+    console.error('Forgot password error:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: 'An error occurred. Please try again.'
     });
   }
 };
 
-// @desc    Reset password
-// @route   PUT /api/auth/reset-password/:resetToken
-exports.resetPassword = async (req, res) => {
+// @desc    Show password reset page
+// @route   GET /api/auth/reset-password/:resetToken
+// @access  Public
+exports.showResetPasswordPage = async (req, res) => {
   try {
     const resetPasswordToken = crypto
       .createHash('sha256')
       .update(req.params.resetToken)
+      .digest('hex');
+
+    const User = await getUserModel();
+
+    const user = await User.findOne({
+      where: {
+        resetPasswordToken,
+        resetPasswordExpire: { [Op.gt]: Date.now() }
+      }
+    });
+
+    if (!user) {
+      // Redirect to frontend with error
+      const FRONTEND_URL = process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app';
+      return res.redirect(`${FRONTEND_URL}/reset-password?error=invalid_token`);
+    }
+
+    // Redirect to frontend reset password page with valid token
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app';
+    return res.redirect(`${FRONTEND_URL}/reset-password?token=${req.params.resetToken}&email=${user.email}`);
+  } catch (error) {
+    console.error('Show reset password page error:', error);
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app';
+    return res.redirect(`${FRONTEND_URL}/reset-password?error=server_error`);
+  }
+};
+
+// @desc    Reset password
+// @route   POST /api/auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token, password, and confirm password are required'
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Passwords do not match'
+      });
+    }
+
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
       .digest('hex');
 
     const User = await getUserModel();
@@ -529,7 +604,7 @@ exports.resetPassword = async (req, res) => {
     }
 
     // Validate new password
-    const passwordValidation = validatePassword(req.body.password);
+    const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,
@@ -539,21 +614,19 @@ exports.resetPassword = async (req, res) => {
     }
 
     // Set new password
-    user.password = req.body.password;
+    user.password = password;
     user.resetPasswordToken = null;
     user.resetPasswordExpire = null;
 
     await user.save();
 
-    // Generate new token
-    const token = generateToken(user.id);
-
     res.status(200).json({
       success: true,
-      message: 'Password reset successful',
-      token
+      message: 'Password reset successful. You can now log in with your new password.',
+      email: user.email
     });
   } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({
       success: false,
       message: error.message

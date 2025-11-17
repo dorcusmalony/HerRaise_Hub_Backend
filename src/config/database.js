@@ -389,7 +389,7 @@ const connectDB = async () => {
       defaultValue: 'discussion' 
     },
     category: {
-      type: DataTypes.ENUM('personal-growth', 'mental-health', 'education-study', 'career-future', 'womens-health', 'equality-rights', 'leadership'),
+      type: DataTypes.ENUM('mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'),
       allowNull: true
     },
     tags: { type: DataTypes.JSONB, defaultValue: [] },
@@ -397,13 +397,15 @@ const connectDB = async () => {
     views: { type: DataTypes.INTEGER, defaultValue: 0 },
     viewers: { type: DataTypes.JSONB, defaultValue: [] },
     isLocked: { type: DataTypes.BOOLEAN, defaultValue: false },
-    attachments: { type: DataTypes.JSONB, defaultValue: [] }
+    attachments: { type: DataTypes.JSONB, defaultValue: [] },
+    mentions: { type: DataTypes.JSONB, defaultValue: [] }
   }, { timestamps: true });
 
   const ForumComment = sequelize.define('ForumComment', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     content: { type: DataTypes.TEXT, allowNull: false },
     likes: { type: DataTypes.JSONB, defaultValue: [] },
+    mentions: { type: DataTypes.JSONB, defaultValue: [] },
     parentCommentId: { type: DataTypes.UUID, allowNull: true }
   }, { timestamps: true });
 
@@ -565,6 +567,18 @@ const connectDB = async () => {
   User.hasMany(ShareZone, { foreignKey: 'author' });
   ShareZone.belongsTo(User, { as: 'authorData', foreignKey: 'author' });
 
+  // System Translation model for static content translations
+  const SystemTranslation = sequelize.define('SystemTranslation', {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    key: { type: DataTypes.STRING, allowNull: false, unique: true },
+    en: { type: DataTypes.TEXT, allowNull: false },
+    ar: { type: DataTypes.TEXT, allowNull: false },
+    category: { type: DataTypes.STRING, allowNull: false, defaultValue: 'general' }
+  }, { 
+    timestamps: true,
+    indexes: [{ fields: ['key'] }, { fields: ['category'] }]
+  });
+
   // ShareZone Comment model
   const ShareZoneComment = require('../models/ShareZoneComment')(sequelize);
   User.hasMany(ShareZoneComment, { foreignKey: 'author' });
@@ -615,6 +629,7 @@ const connectDB = async () => {
     }
 
     console.log(' Sequelize models synced (tables created/updated)');
+    
   } catch (syncErr) {
     console.error(' Sequelize sync error:', syncErr && syncErr.message);
     process.exit(1);

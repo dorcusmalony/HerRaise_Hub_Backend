@@ -5,7 +5,8 @@ const {
   login, 
   getMe, 
   forgotPassword, 
-  resetPassword, 
+  resetPassword,
+  showResetPasswordPage,
   changePassword,
   logout,
   validatePassword,
@@ -21,7 +22,8 @@ router.post('/login', login);
 router.post('/logout', protect, logout);
 router.get('/me', protect, getMe);
 router.post('/forgot-password', forgotPassword);
-router.put('/reset-password/:resetToken', resetPassword);
+router.get('/reset-password/:resetToken', showResetPasswordPage);
+router.post('/reset-password', resetPassword);
 router.put('/change-password', protect, changePassword);
 router.post('/validate-password', validatePassword);
 

@@ -9,7 +9,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "fix-categories": "node fix-post-categories.js",
-    "lint": "npx eslint src/"
+    "lint": "npx eslint src/",
+    "migrate": "npx sequelize-cli db:migrate",
+    "migrate:undo": "npx sequelize-cli db:migrate:undo",
+    "migrate:status": "npx sequelize-cli db:migrate:status",
+    "db:reset": "npx sequelize-cli db:migrate:undo:all && npx sequelize-cli db:migrate"
   },
   "dependencies": {
     "@adminjs/express": "^6.1.0",
@@ -25,6 +29,8 @@
     "express-rate-limit": "^7.2.0",
     "helmet": "^7.1.0",
     "i18n": "^0.15.3",
+    "i18next": "^25.6.2",
+    "i18next-fs-backend": "^2.6.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
