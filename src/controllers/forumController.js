@@ -649,6 +649,24 @@ exports.addComment = async (req, res) => {
       });
     }
 
+    // Prevent duplicate comments (same user, same content, within 30 seconds)
+    const thirtySecondsAgo = new Date(Date.now() - 30000);
+    const recentComment = await ForumComment.findOne({
+      where: {
+        postId: req.params.id,
+        authorId: req.user.id,
+        content,
+        createdAt: { [require('sequelize').Op.gte]: thirtySecondsAgo }
+      }
+    });
+
+    if (recentComment) {
+      return res.status(409).json({
+        success: false,
+        message: 'Duplicate comment detected. Please wait before posting again.'
+      });
+    }
+
     // Get parent comment if replying
     let parentComment = null;
     if (parentCommentId) {

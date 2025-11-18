@@ -178,6 +178,7 @@ app.use('/api/admin', require('./routes/adminStatsRoutes'));
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/opportunities', adminOpportunityRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/opportunity-board', opportunityBoardRoutes);
 app.use('/api/application-tracker', applicationTrackerRoutes);

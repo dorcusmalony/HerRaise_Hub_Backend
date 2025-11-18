@@ -13,6 +13,9 @@ class ReminderService {
         return;
       }
 
+      // Test database connection
+      await models.Opportunity.findOne({ limit: 1 });
+
       const threeDaysFromNow = new Date();
       threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
       
@@ -59,7 +62,8 @@ class ReminderService {
         }
       }
 
-      console.log(`Sent deadline reminders for ${expiringOpportunities.length} opportunities`);
+      console.log(`📅 Found ${expiringOpportunities.length} opportunities expiring in 3 days`);
+      console.log(`📧 Sent deadline reminders for ${expiringOpportunities.length} opportunities`);
     } catch (error) {
       console.error('Error checking reminders:', error.message);
       // Don't let reminder errors crash the app
