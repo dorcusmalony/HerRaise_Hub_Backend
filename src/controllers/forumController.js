@@ -722,46 +722,54 @@ exports.addComment = async (req, res) => {
 
     // Send notification to post author (if not commenting on own post)
     if (post.authorId.toString() !== req.user.id.toString()) {
-      await Notification.create({
-        userId: post.authorId,
-        type: 'forum_comment',
-        title: parentCommentId ? 'New reply on your post' : 'New comment on your post',
-        message: parentCommentId 
-          ? `${req.user.name} replied to a comment on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"` 
-          : `${req.user.name} commented on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
-        data: {
-          postId: post.id,
-          postTitle: post.title,
-          commentId: comment.id,
-          commenterName: req.user.name,
-          commenterId: req.user.id,
-          isReply: !!parentCommentId
-        },
-        relatedId: post.id,
-        link: `/forum/posts/${post.id}`
-      });
-      console.log(`📢 Comment notification sent to ${post.author?.name}`);
+      try {
+        await Notification.create({
+          userId: post.authorId,
+          type: 'forum_comment',
+          title: parentCommentId ? 'New reply on your post' : 'New comment on your post',
+          message: parentCommentId 
+            ? `${req.user.name} replied to a comment on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"` 
+            : `${req.user.name} commented on your post "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
+          data: {
+            postId: post.id,
+            postTitle: post.title,
+            commentId: comment.id,
+            commenterName: req.user.name,
+            commenterId: req.user.id,
+            isReply: !!parentCommentId
+          },
+          relatedId: post.id,
+          link: `/forum/posts/${post.id}`
+        });
+        console.log(`📢 Comment notification created for user ${post.authorId}`);
+      } catch (notifError) {
+        console.error('❌ Failed to create comment notification:', notifError.message);
+      }
     }
 
     // Send notification to parent comment author (if replying and not to self)
     if (parentComment && parentComment.authorId.toString() !== req.user.id.toString()) {
-      await Notification.create({
-        userId: parentComment.authorId,
-        type: 'forum_reply',
-        title: 'Someone replied to your comment',
-        message: `${req.user.name} replied to your comment on "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
-        data: {
-          postId: post.id,
-          postTitle: post.title,
-          commentId: comment.id,
-          parentCommentId: parentCommentId,
-          replierName: req.user.name,
-          replierId: req.user.id
-        },
-        relatedId: post.id,
-        link: `/forum/posts/${post.id}`
-      });
-      console.log(`📢 Reply notification sent to ${parentComment.author?.name}`);
+      try {
+        await Notification.create({
+          userId: parentComment.authorId,
+          type: 'forum_reply',
+          title: 'Someone replied to your comment',
+          message: `${req.user.name} replied to your comment on "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
+          data: {
+            postId: post.id,
+            postTitle: post.title,
+            commentId: comment.id,
+            parentCommentId: parentCommentId,
+            replierName: req.user.name,
+            replierId: req.user.id
+          },
+          relatedId: post.id,
+          link: `/forum/posts/${post.id}`
+        });
+        console.log(`📢 Reply notification created for user ${parentComment.authorId}`);
+      } catch (notifError) {
+        console.error('❌ Failed to create reply notification:', notifError.message);
+      }
     }
 
 
@@ -903,21 +911,25 @@ exports.togglePostLike = async (req, res) => {
 
     // Send notification for new like (not unlike) and not to self
     if (isLiking && post.authorId.toString() !== req.user.id.toString()) {
-      await Notification.create({
-        userId: post.authorId,
-        type: 'forum_like',
-        title: 'Someone liked your post',
-        message: `${req.user.name} liked your post "${post.title.substring(0, 50)}${post.title.length > 50 ? '...' : ''}"`,
-        data: {
-          postId: post.id,
-          postTitle: post.title,
-          likerName: req.user.name,
-          likerId: req.user.id
-        },
-        relatedId: post.id,
-        link: `/forum/posts/${post.id}`
-      });
-      console.log(`📢 Like notification sent to ${post.author?.name} for post: ${post.title}`);
+      try {
+        await Notification.create({
+          userId: post.authorId,
+          type: 'forum_like',
+          title: 'Someone liked your post',
+          message: `${req.user.name} liked your post "${post.title.substring(0, 50)}${post.title.length > 50 ? '...' : ''}"`,
+          data: {
+            postId: post.id,
+            postTitle: post.title,
+            likerName: req.user.name,
+            likerId: req.user.id
+          },
+          relatedId: post.id,
+          link: `/forum/posts/${post.id}`
+        });
+        console.log(`📢 Like notification created for user ${post.authorId} - post: ${post.title}`);
+      } catch (notifError) {
+        console.error('❌ Failed to create like notification:', notifError.message);
+      }
     }
 
     // Notify users who commented on this post
@@ -999,7 +1011,7 @@ exports.toggleCommentLike = async (req, res) => {
     if (isLiking && comment.authorId.toString() !== req.user.id.toString()) {
       await Notification.create({
         userId: comment.authorId,
-        type: 'forum_comment_like',
+        type: 'forum_like',
         title: 'Someone liked your comment',
         message: `${req.user.name} liked your comment on "${comment.ForumPost?.title?.substring(0, 40)}${comment.ForumPost?.title?.length > 40 ? '...' : ''}"`,
         data: {
