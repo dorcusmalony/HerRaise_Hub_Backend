@@ -872,7 +872,7 @@ exports.deleteComment = async (req, res) => {
 // @access  Private
 exports.togglePostLike = async (req, res) => {
   try {
-    const { ForumPost, User, Notification } = db.models;
+    const { ForumPost, User, Notification, ForumComment } = db.models;
     
     const post = await ForumPost.findByPk(req.params.id, {
       include: [{ model: User, as: 'author', attributes: ['id', 'name'] }]
