@@ -743,32 +743,6 @@ exports.addComment = async (req, res) => {
       console.log(`📢 Comment notification sent to ${post.author?.name}`);
     }
 
-    // Notify other users who commented on this post
-    if (!parentCommentId) {
-      const otherCommenters = await ForumComment.findAll({
-        where: { 
-          postId: post.id,
-          authorId: { [Op.ne]: req.user.id }
-        },
-        attributes: ['authorId'],
-        group: ['authorId']
-      });
-      
-      for (const commenter of otherCommenters) {
-        if (commenter.authorId !== post.authorId) {
-          await Notification.create({
-            userId: commenter.authorId,
-            type: 'forum_activity',
-            title: 'New comment on a post you participated in',
-            message: `${req.user.name} also commented on "${post.title.substring(0, 40)}${post.title.length > 40 ? '...' : ''}"`,
-            data: { postId: post.id, commentId: comment.id },
-            relatedId: post.id,
-            link: `/forum/posts/${post.id}`
-          });
-        }
-      }
-    }
-
     // Send notification to parent comment author (if replying and not to self)
     if (parentComment && parentComment.authorId.toString() !== req.user.id.toString()) {
       await Notification.create({
