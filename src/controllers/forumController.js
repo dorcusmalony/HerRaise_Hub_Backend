@@ -932,7 +932,7 @@ exports.togglePostLike = async (req, res) => {
         if (commenter.authorId !== req.user.id && commenter.authorId !== post.authorId) {
           await Notification.create({
             userId: commenter.authorId,
-            type: 'forum_activity',
+            type: 'forum_like',
             title: 'Activity on a post you commented on',
             message: `${req.user.name} liked a post you participated in`,
             data: { postId: post.id, postTitle: post.title },
