@@ -1011,7 +1011,7 @@ exports.toggleCommentLike = async (req, res) => {
     if (isLiking && comment.authorId.toString() !== req.user.id.toString()) {
       await Notification.create({
         userId: comment.authorId,
-        type: 'forum_comment_like',
+        type: 'forum_like',
         title: 'Someone liked your comment',
         message: `${req.user.name} liked your comment on "${comment.ForumPost?.title?.substring(0, 40)}${comment.ForumPost?.title?.length > 40 ? '...' : ''}"`,
         data: {
