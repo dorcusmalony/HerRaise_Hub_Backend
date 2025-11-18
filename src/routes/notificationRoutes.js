@@ -92,27 +92,4 @@ router.put('/mark-all-read', protect, async (req, res) => {
   }
 });
 
-// @desc    Create notification (for frontend compatibility)
-// @route   POST /api/notifications
-// @access  Private
-router.post('/', protect, async (req, res) => {
-  try {
-    const { type, recipientId, data, message } = req.body;
-    
-    // This endpoint exists for frontend compatibility
-    // Notifications are already handled automatically by the backend
-    console.log('Frontend notification request:', { type, recipientId, message });
-    
-    res.json({
-      success: true,
-      message: 'Notification handled'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
 module.exports = router;
