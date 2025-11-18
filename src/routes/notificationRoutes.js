@@ -92,4 +92,38 @@ router.put('/mark-all-read', protect, async (req, res) => {
   }
 });
 
+// @desc    Create notification
+// @route   POST /api/notifications
+// @access  Private
+router.post('/', protect, async (req, res) => {
+  try {
+    const { type, recipientId, data, message } = req.body;
+    
+    if (!type || !recipientId || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type, recipientId, and message are required'
+      });
+    }
+
+    const notification = await NotificationService.createNotification(
+      recipientId,
+      type,
+      message,
+      message,
+      data || {}
+    );
+    
+    res.status(201).json({
+      success: true,
+      notification
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
