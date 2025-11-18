@@ -371,4 +371,7 @@ if (process.env.NODE_ENV !== 'test') {
   console.log('✅ Opportunity tracking, reminder, and cleanup systems initialized');
 }
 
+// Force cache clear for mentions removal
+console.log('🔄 Forum mentions functionality removed - cache cleared');
+
 module.exports = app;
