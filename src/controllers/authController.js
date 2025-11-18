@@ -419,8 +419,22 @@ exports.login = async (req, res) => {
     // Create notifications for pending opportunities
     if (pendingReminders.length > 0) {
       try {
-        const { createPendingOpportunityNotifications } = require('./notificationController');
-        await createPendingOpportunityNotifications(user.id, pendingReminders);
+        const NotificationService = require('../services/notificationService');
+        for (const reminder of pendingReminders) {
+          await NotificationService.createNotification(
+            user.id,
+            'deadline_reminder',
+            `⏰ ${reminder.message}`,
+            `Don't forget to complete your application for "${reminder.title}" at ${reminder.organization}`,
+            {
+              opportunityId: reminder.id,
+              daysRemaining: reminder.daysRemaining,
+              priority: reminder.priority
+            },
+            reminder.id,
+            `/opportunities/${reminder.id}`
+          );
+        }
       } catch (notificationError) {
         console.log('Failed to create pending opportunity notifications:', notificationError.message);
       }
