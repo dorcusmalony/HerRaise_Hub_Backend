@@ -15,11 +15,15 @@ const {
   createFeedbackPost,
   getFeedbackPosts,
   getCategories,
-  getPostsByCategory
+  getPostsByCategory,
+  createPostInCategory,
+  getCategoryStats
 } = require('../controllers/forumController');
 // Category routes
 router.get('/categories', getCategories);
 router.get('/categories/:category/posts', getPostsByCategory);
+router.post('/categories/:category/posts', protect, createPostInCategory);
+router.get('/categories/:category/stats', getCategoryStats);
 
 // Post routes
 router.get('/posts', getPosts);

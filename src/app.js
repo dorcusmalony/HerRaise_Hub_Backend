@@ -167,6 +167,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/forum', forumRoutes);
+app.use('/api/forum', require('./routes/forumTagRoutes'));
 app.use('/api/sharezone', require('./routes/shareZoneRoutes'));
 app.use('/api/safety-resources', safetyResourceRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
