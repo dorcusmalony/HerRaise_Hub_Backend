@@ -94,19 +94,10 @@ class NotificationService {
     );
   }
 
-  // New forum post notification
+  // New forum post notification (disabled - too spammy)
   static async notifyNewForumQuestion(post, authorId) {
-    await this.notifyAllUsers(
-      'forum_question',
-      '💬 New Forum Post',
-      `${post.author.name} posted: "${post.title}"`,
-      {
-        postId: post.id,
-        authorName: post.author.name
-      },
-      authorId,
-      `/forum/posts/${post.id}`
-    );
+    // Don't notify all users for new posts - too spammy
+    console.log(`📝 New forum post created: ${post.title} by ${post.author.name}`);
   }
 
   // New comment notification (to post author)
@@ -205,6 +196,11 @@ class NotificationService {
     try {
       const { Notification } = db.models;
       
+      if (!Notification) {
+        console.warn('⚠️ Notification model not available in getUserNotifications');
+        return { notifications: [], unreadCount: 0, total: 0 };
+      }
+
       const notifications = await Notification.findAll({
         where: { userId },
         order: [['createdAt', 'DESC']],
@@ -216,13 +212,15 @@ class NotificationService {
         where: { userId, readStatus: false }
       });
 
+      console.log(`📊 User ${userId} has ${notifications.length} notifications, ${unreadCount} unread`);
+
       return {
         notifications,
         unreadCount,
         total: notifications.length
       };
     } catch (error) {
-      console.error('Error getting user notifications:', error);
+      console.error('❌ Error getting user notifications:', error.message);
       return { notifications: [], unreadCount: 0, total: 0 };
     }
   }
