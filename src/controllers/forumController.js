@@ -218,7 +218,7 @@ exports.getPostsByCategory = async (req, res) => {
 // @access  Public
 exports.getPosts = async (req, res) => {
   try {
-    const { ForumPost, User } = db.models;
+    const { ForumPost, User, ForumComment } = db.models;
     const { filter = 'all', sort = 'recent', limit = 10, category } = req.query;
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
@@ -247,7 +247,27 @@ exports.getPosts = async (req, res) => {
           as: 'author',
           attributes: ['id', 'name', 'profilePicture', 'role']
         },
-        // Comments disabled for now
+        {
+          model: ForumComment,
+          where: { parentCommentId: null },
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'author',
+              attributes: ['id', 'name', 'profilePicture', 'role']
+            },
+            {
+              model: ForumComment,
+              as: 'replies',
+              include: [{
+                model: User,
+                as: 'author',
+                attributes: ['id', 'name', 'profilePicture', 'role']
+              }]
+            }
+          ]
+        }
       ]
     });
 
