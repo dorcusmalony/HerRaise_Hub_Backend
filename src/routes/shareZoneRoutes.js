@@ -57,6 +57,8 @@ router.get('/', async (req, res) => {
       content: post.content,
       category: post.category,
       fileUrl: post.fileUrl,
+      externalLinks: post.externalLinks || [],
+      linkType: post.linkType || 'file',
       author: post.authorData,
       createdAt: post.createdAt,
       ShareZoneComments: post.ShareZoneComments || []
@@ -112,6 +114,8 @@ router.get('/:id', async (req, res) => {
       content: post.content,
       category: post.category,
       fileUrl: post.fileUrl,
+      externalLinks: post.externalLinks || [],
+      linkType: post.linkType || 'file',
       author: post.authorData,
       createdAt: post.createdAt,
       ShareZoneComments: post.ShareZoneComments || []
@@ -187,6 +191,8 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       content: postWithAuthor.content,
       category: postWithAuthor.category,
       fileUrl: postWithAuthor.fileUrl,
+      externalLinks: postWithAuthor.externalLinks || [],
+      linkType: postWithAuthor.linkType || 'file',
       author: postWithAuthor.authorData,
       createdAt: postWithAuthor.createdAt
     });
