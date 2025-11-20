@@ -121,10 +121,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/sharezone - Create new ShareZone content with file upload
+// POST /api/sharezone - Create new ShareZone content with file upload or external links
 router.post('/', protect, upload.single('file'), async (req, res) => {
   try {
-    const { title, content, category } = req.body;
+    const { title, content, category, externalLinks, linkType } = req.body;
     
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
@@ -136,10 +136,25 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
     }
 
     let fileUrl = null;
+    let parsedExternalLinks = [];
+    let finalLinkType = 'file';
+
+    // Handle external links (Google Drive, OneDrive, etc.)
+    if (externalLinks) {
+      try {
+        parsedExternalLinks = typeof externalLinks === 'string' ? JSON.parse(externalLinks) : externalLinks;
+        finalLinkType = linkType || 'external';
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid external links format' });
+      }
+    }
+
+    // Handle file upload
     if (req.file) {
       try {
         const result = await uploadToCloudinary(req.file.buffer, 'sharezone');
         fileUrl = result.secure_url;
+        finalLinkType = 'file';
       } catch (uploadError) {
         console.error('File upload failed:', uploadError.message);
         return res.status(400).json({ 
@@ -153,6 +168,8 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       content: content || '',
       category,
       fileUrl,
+      externalLinks: parsedExternalLinks,
+      linkType: finalLinkType,
       author: req.user.id
     });
 
