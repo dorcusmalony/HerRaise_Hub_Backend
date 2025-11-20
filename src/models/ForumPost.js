@@ -22,7 +22,7 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT
     },
     type: {
-      type: DataTypes.ENUM('discussion', 'question', 'announcement'),
+      type: DataTypes.ENUM('discussion', 'question', 'announcement', 'project'),
       defaultValue: 'discussion'
     },
     category: {

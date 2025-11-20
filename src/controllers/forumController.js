@@ -907,6 +907,7 @@ exports.togglePostLike = async (req, res) => {
     }
 
     post.likes = likes;
+    post.changed('likes', true); // Mark as changed for JSON field
     await post.save();
 
     // Send notification for new like (not unlike) and not to self
