@@ -76,10 +76,10 @@ exports.getPostsByCategory = async (req, res) => {
     // Build where clause
     const where = {
       category,
-      type: ['discussion', 'question', 'announcement']
+      type: ['discussion', 'question', 'announcement', 'project']
     };
     
-    if (type !== 'all' && ['discussion', 'question', 'announcement'].includes(type)) {
+    if (type !== 'all' && ['discussion', 'question', 'announcement', 'project'].includes(type)) {
       where.type = type;
     }
 
@@ -223,9 +223,9 @@ exports.getPosts = async (req, res) => {
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0] || 'en';
 
     const where = {
-      type: ['discussion', 'question', 'announcement']
+      type: ['discussion', 'question', 'announcement', 'project']
     };
-    if (filter !== 'all' && ['discussion', 'question', 'announcement'].includes(filter)) {
+    if (filter !== 'all' && ['discussion', 'question', 'announcement', 'project'].includes(filter)) {
       where.type = filter;
     }
     if (category && ['mental-health', 'leadership', 'education-study', 'equality-rights', 'career-skills', 'womens-health'].includes(category)) {

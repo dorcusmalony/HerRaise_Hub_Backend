@@ -8,13 +8,19 @@ const NotificationService = require('../services/notificationService');
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit = 20, offset = 0, markAsRead = 'false' } = req.query;
     
     const result = await NotificationService.getUserNotifications(
       req.user.id,
       parseInt(limit),
       parseInt(offset)
     );
+
+    // Only mark as read if explicitly requested
+    if (markAsRead === 'true') {
+      await NotificationService.markAllAsRead(req.user.id);
+      result.unreadCount = 0;
+    }
 
     res.json({
       success: true,
