@@ -21,6 +21,14 @@ module.exports = (sequelize) => {
     fileUrl: { 
       type: DataTypes.TEXT 
     },
+    externalLinks: {
+      type: DataTypes.JSON,
+      defaultValue: []
+    },
+    linkType: {
+      type: DataTypes.ENUM('file', 'google_drive', 'onedrive', 'dropbox', 'external'),
+      defaultValue: 'file'
+    },
     author: { 
       type: DataTypes.UUID, 
       allowNull: false 
