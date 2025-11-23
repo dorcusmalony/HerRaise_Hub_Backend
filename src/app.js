@@ -35,10 +35,11 @@ const i18nMiddleware = require('./middleware/i18nMiddleware');
 
 const app = express();
 
-ty
+// ------------------ SECURITY & LOGGING ------------------
+// app.use(helmet()); // Disabled for admin panel functionality
 app.use(morgan('dev'));
 
-// CORS CONFIG ------------------
+// ------------------ CORS CONFIG ------------------
 const DEFAULT_FRONTENDS = [
   'https://her-raise-hub.vercel.app',
   'http://localhost:5173',
@@ -228,7 +229,7 @@ app.all('/login', (req, res) => {
     return res.redirect(307, '/api/auth/login');
   }
 
-  // For non-POST (
+  // For non-POST (e.g. someone probing via curl), return a clear API hint.
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend login page.',
