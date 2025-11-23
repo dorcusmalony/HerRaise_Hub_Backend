@@ -35,13 +35,10 @@ const i18nMiddleware = require('./middleware/i18nMiddleware');
 
 const app = express();
 
-// Admin panel available at /api/admin-panel
-
-// ------------------ SECURITY & LOGGING ------------------
-// app.use(helmet()); // Disabled for admin panel functionality
+ty
 app.use(morgan('dev'));
 
-// ------------------ CORS CONFIG ------------------
+// CORS CONFIG ------------------
 const DEFAULT_FRONTENDS = [
   'https://her-raise-hub.vercel.app',
   'http://localhost:5173',
@@ -231,7 +228,7 @@ app.all('/login', (req, res) => {
     return res.redirect(307, '/api/auth/login');
   }
 
-  // For non-POST (e.g. someone probing via curl), return a clear API hint.
+  // For non-POST (
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend login page.',
@@ -369,10 +366,9 @@ app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate
 if (process.env.NODE_ENV !== 'test') {
   ReminderService.startReminderJobs();
   CleanupService.startCleanupJobs();
-  console.log('✅ Opportunity tracking, reminder, and cleanup systems initialized');
+  console.log(' Opportunity tracking, reminder, and cleanup systems initialized');
 }
 
-// Force cache clear for mentions removal
-console.log('🔄 Forum mentions functionality removed - cache cleared');
+
 
 module.exports = app;
