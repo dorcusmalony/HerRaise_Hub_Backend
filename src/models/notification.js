@@ -22,14 +22,7 @@ module.exports = (sequelize) => {
         'application', 
         'reminder', 
         'mentorship',
-        'website_update',
-        'post_comment',
-        'forum_reply',
-        'comment_reply',
-        'comment_like',
-        'post_like',
-        'new_post',
-        'deadline_reminder'
+        'website_update'
       ),
       allowNull: false
     },
