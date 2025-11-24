@@ -62,8 +62,8 @@ class ReminderService {
         }
       }
 
-      console.log(`📅 Found ${expiringOpportunities.length} opportunities expiring in 3 days`);
-      console.log(`📧 Sent deadline reminders for ${expiringOpportunities.length} opportunities`);
+      console.log(` Found ${expiringOpportunities.length} opportunities expiring in 3 days`);
+      console.log(` Sent deadline reminders for ${expiringOpportunities.length} opportunities`);
     } catch (error) {
       console.error('Error checking reminders:', error.message);
       // Don't let reminder errors crash the app

@@ -77,9 +77,7 @@ exports.getActivityStats = async (req, res) => {
   }
 };
 
-// @desc    Check and award badges
-// @route   POST /api/activity/check-badges
-// @access  Private
+
 exports.checkAndAwardBadges = async (req, res) => {
   try {
     const activity = await UserActivity.findOne({ user: req.user.id });
@@ -203,14 +201,11 @@ exports.checkAndAwardBadges = async (req, res) => {
   }
 };
 
-// @desc    Get leaderboard
-// @route   GET /api/activity/leaderboard
-// @access  Public
 exports.getLeaderboard = async (req, res) => {
   try {
     const { User } = require('../config/database').models;
     
-    // Replace MongoDB query with Sequelize query
+    
     const users = await User.findAll({
       where: { isActive: true },
       attributes: ['id', 'name', 'profilePicture', 'totalPoints', 'level'],
@@ -220,7 +215,7 @@ exports.getLeaderboard = async (req, res) => {
 
     const UserActivity = require('../models/UserActivity');
     
-    // Get activity data for these users
+    
     const userIds = users.map(u => u.id);
     const activities = await UserActivity.__getSequelizeModel().then(model => 
       model.findAll({
@@ -280,7 +275,7 @@ exports.logActivity = async (req, res) => {
         const resource = await Resource.findByPk(resourceId);
         pointsEarned = 2; // Default points for resource view
 
-        // Award additional points if resource is a video
+        
         if (resource && resource.type === 'video') {
           pointsEarned += 3;
         }
@@ -316,7 +311,7 @@ exports.logActivity = async (req, res) => {
         break;
     }
 
-    // Update activity record
+    
     activity.totalTimeSpent += pointsEarned;
     activity.dailyActivity.push({
       date: new Date(),

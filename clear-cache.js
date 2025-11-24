@@ -1,4 +1,4 @@
-// Clear Sequelize model cache and restart
+
 const db = require('./src/config/database');
 
 async function clearCache() {
@@ -8,7 +8,7 @@ async function clearCache() {
     // Close existing connections
     await db.sequelize.close();
     
-    // Clear require cache for models
+    
     Object.keys(require.cache).forEach(key => {
       if (key.includes('/models/') || key.includes('\\models\\')) {
         delete require.cache[key];

@@ -18,7 +18,7 @@ const cleanupOldScholarships = async () => {
     });
     
     if (deletedCount > 0) {
-      console.log(`🗑️ Cleaned up ${deletedCount} scholarships older than 30 days`);
+      console.log(` Cleaned up ${deletedCount} scholarships older than 30 days`);
     }
   } catch (error) {
     console.error('Error cleaning up old scholarships:', error);
@@ -32,7 +32,7 @@ const startCleanupJobs = () => {
     timezone: process.env.TZ || 'UTC'
   });
   
-  console.log('✅ Cleanup service started - scholarships will be deleted after 30 days');
+  console.log('Cleanup service started - scholarships will be deleted after 30 days');
 };
 
 module.exports = {
