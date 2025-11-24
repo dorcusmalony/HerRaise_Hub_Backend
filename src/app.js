@@ -326,12 +326,12 @@ function listMountedRoutes() {
 }
 listMountedRoutes();
 
-// ------------------ HEALTH CHECK ------------------
+//  HEALTH CHECK 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
-// ------------------ 404 HANDLER ------------------
+//  404 HANDLER 
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -342,8 +342,8 @@ app.use((req, res) => {
   });
 });
 
-// ------------------ ERROR HANDLER ------------------
-app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate it's intentionally unused
+
+app.use((err, req, res, _next) => {  
   console.error(' Error:', err.stack);
   
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
@@ -356,7 +356,7 @@ app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate
 
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Server Error',
+    message: err.message || ' Error try again',
     error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 });
@@ -367,7 +367,7 @@ app.use((err, req, res, _next) => {  // ← Rename 'next' to '_next' to indicate
 if (process.env.NODE_ENV !== 'test') {
   ReminderService.startReminderJobs();
   CleanupService.startCleanupJobs();
-  console.log(' Opportunity tracking, reminder, and cleanup systems initialized');
+  console.log(' Opportunity tracking, reminder');
 }
 
 

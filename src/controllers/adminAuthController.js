@@ -37,9 +37,23 @@ exports.adminLogin = async (req, res) => {
         console.log('User role updated to admin');
       }
       
-      // Generate a simple admin token
-      const adminToken = Buffer.from(`${user.id}:admin:${Date.now()}`).toString('base64');
-      return res.redirect(`/api/admin?token=${adminToken}`);
+      // Generate JWT token
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: 'admin' },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      return res.json({
+        success: true,
+        token,
+        admin: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: 'admin'
+        }
+      });
     }
     
     return res.status(401).send('<h1>Invalid admin credentials</h1><a href="/api/admin/login">Try again</a>');
