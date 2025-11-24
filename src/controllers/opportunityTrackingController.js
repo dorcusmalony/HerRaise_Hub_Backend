@@ -240,12 +240,18 @@ exports.getClickedOpportunities = async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    // Map to include status field for frontend
+    const opportunities = clickedOpportunities.map(app => ({
+      ...app.toJSON(),
+      status: app.applicationStatus
+    }));
+
     res.json({
       success: true,
       message: 'Opportunities you have clicked/liked',
-      count: clickedOpportunities.length,
+      count: opportunities.length,
       totalUserInteractions: totalCount,
-      opportunities: clickedOpportunities
+      opportunities
     });
   } catch (error) {
     res.status(500).json({ 
@@ -287,4 +293,3 @@ exports.createTestRecord = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-

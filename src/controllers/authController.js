@@ -378,7 +378,7 @@ exports.login = async (req, res) => {
           userId: user.id,
           isInterested: true,
           applicationStatus: {
-            [Op.in]: ['interested', 'in_progress']
+            [Op.in]: ['interested', 'in_progress', 'pending']
           }
         },
         include: [{

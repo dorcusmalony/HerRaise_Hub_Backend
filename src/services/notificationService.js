@@ -72,32 +72,53 @@ class NotificationService {
         });
       }
 
-      console.log(`📢 Sent ${type} notification to ${notifications.length} users`);
+      console.log(`Sent ${type} notification to ${notifications.length} users`);
     } catch (error) {
       console.error('Error sending notifications to all users:', error);
     }
   }
 
-  // New opportunity notification
+  // Notify only users who track opportunities
+  static async notifyTargetedUsers(opportunity, userIds, creatorId) {
+    try {
+      if (!userIds || userIds.length === 0) return;
+
+      const { Notification } = db.models;
+      
+      const notifications = userIds
+        .filter(userId => userId !== creatorId)
+        .map(userId => ({
+          userId,
+          type: 'opportunity',
+          title: `New ${opportunity.type}!`,
+          message: `${opportunity.title} - Check it out now!`,
+          data: {
+            opportunityId: opportunity.id,
+            opportunityType: opportunity.type,
+            organization: opportunity.organization
+          },
+          link: `/opportunities/${opportunity.id}`,
+          readStatus: false
+        }));
+
+      if (notifications.length > 0) {
+        await Notification.bulkCreate(notifications);
+        console.log(`Sent opportunity notification to ${notifications.length} tracked users`);
+      }
+    } catch (error) {
+      console.error('Error sending targeted notifications:', error.message);
+    }
+  }
+
+  // New opportunity notification (disabled - too spammy)
   static async notifyNewOpportunity(opportunity, creatorId) {
-    await this.notifyAllUsers(
-      'opportunity',
-      `🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}!`,
-      `${opportunity.title} - Check it out now!`,
-      {
-        opportunityId: opportunity.id,
-        opportunityType: opportunity.type,
-        organization: opportunity.organization
-      },
-      creatorId,
-      `/opportunities/${opportunity.id}`
-    );
+    console.log(`New opportunity created: ${opportunity.title}`);
   }
 
   // New forum post notification (disabled - too spammy)
   static async notifyNewForumQuestion(post, authorId) {
     // Don't notify all users for new posts - too spammy
-    console.log(`📝 New forum post created: ${post.title} by ${post.author.name}`);
+    console.log(`New forum post created: ${post.title} by ${post.author.name}`);
   }
 
   // New comment notification (to post author)
@@ -106,7 +127,7 @@ class NotificationService {
       await this.createNotification(
         post.authorId,
         'forum_comment',
-        '💬 New Comment on Your Post',
+        'New Comment on Your Post',
         `${comment.author.name} commented on "${post.title}"`,
         {
           postId: post.id,
@@ -125,7 +146,7 @@ class NotificationService {
       await this.createNotification(
         post.authorId,
         'forum_like',
-        '👍 Someone Liked Your Post',
+        'Someone Liked Your Post',
         `${likerName} liked your post "${post.title}"`,
         {
           postId: post.id,
@@ -141,7 +162,7 @@ class NotificationService {
   static async notifyFileUpload(fileName, uploaderName, uploaderId) {
     await this.notifyAllUsers(
       'forum_answer',
-      '📎 New File Uploaded',
+      'New File Uploaded',
       `${uploaderName} uploaded: ${fileName}`,
       {
         fileName,
@@ -155,16 +176,16 @@ class NotificationService {
   // Application status update
   static async notifyApplicationUpdate(userId, opportunity, status) {
     const statusMessages = {
-      'under_review': '📋 Application Under Review',
-      'shortlisted': '🎉 You\'ve Been Shortlisted!',
-      'accepted': '🎊 Congratulations! Application Accepted',
-      'rejected': '📝 Application Update'
+      'under_review': 'Application Under Review',
+      'shortlisted': 'You\'ve Been Shortlisted!',
+      'accepted': 'Congratulations! Application Accepted',
+      'rejected': 'Application Update'
     };
 
     await this.createNotification(
       userId,
       'application_update',
-      statusMessages[status] || '📋 Application Update',
+      statusMessages[status] || 'Application Update',
       `Your application for "${opportunity.title}" has been ${status.replace('_', ' ')}`,
       {
         opportunityId: opportunity.id,
@@ -180,7 +201,7 @@ class NotificationService {
     await this.createNotification(
       userId,
       'deadline_reminder',
-      '⏰ Deadline Reminder',
+      'Deadline Reminder',
       `"${opportunity.title}" deadline is approaching in 3 days!`,
       {
         opportunityId: opportunity.id,
@@ -197,7 +218,7 @@ class NotificationService {
       const { Notification } = db.models;
       
       if (!Notification) {
-        console.warn('⚠️ Notification model not available in getUserNotifications');
+        console.warn('Notification model not available in getUserNotifications');
         return { notifications: [], unreadCount: 0, total: 0 };
       }
 
@@ -212,7 +233,7 @@ class NotificationService {
         where: { userId, readStatus: false }
       });
 
-      console.log(`📊 User ${userId} has ${notifications.length} notifications, ${unreadCount} unread`);
+      console.log(`User ${userId} has ${notifications.length} notifications, ${unreadCount} unread`);
 
       return {
         notifications,
@@ -220,7 +241,7 @@ class NotificationService {
         total: notifications.length
       };
     } catch (error) {
-      console.error('❌ Error getting user notifications:', error.message);
+      console.error('Error getting user notifications:', error.message);
       return { notifications: [], unreadCount: 0, total: 0 };
     }
   }
