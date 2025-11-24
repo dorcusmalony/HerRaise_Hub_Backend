@@ -51,7 +51,7 @@ const sendApplicationReminderEmail = async (userEmail, userName, opportunity, ap
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to: userEmail,
-    subject: `⏰ Reminder: ${opportunity.title} Application`,
+    subject: ` Reminder: ${opportunity.title} Application`,
     html
   });
 };
@@ -107,7 +107,7 @@ const sendNewOpportunityNotification = async (opportunity) => {
   
   const html = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
-      <h2 style="color: #007bff;">🎯 New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)} Alert!</h2>
+      <h2 style="color: #007bff;"> New ${opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)} Alert!</h2>
       <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="color: #333;">${opportunity.title}</h3>
         <p><strong>Organization:</strong> ${opportunity.organization}</p>
@@ -140,7 +140,7 @@ const sendNewOpportunityNotification = async (opportunity) => {
       await transporter.sendMail({
         from: process.env.EMAIL_FROM,
         to: user.email,
-        subject: `🎯 New ${opportunity.type}: ${opportunity.title}`,
+        subject: ` New ${opportunity.type}: ${opportunity.title}`,
         html
       });
     } catch (error) {
@@ -172,9 +172,9 @@ const checkUpcomingDeadlines = async () => {
         const daysLeft = opportunity.countdown.daysLeft;
         let urgencyMessage = '';
         
-        if (daysLeft === 0) urgencyMessage = '⚠️ DEADLINE TODAY!';
-        else if (daysLeft === 1) urgencyMessage = '⚠️ Only 1 day left!';
-        else urgencyMessage = `⏰ Only ${daysLeft} days left!`;
+        if (daysLeft === 0) urgencyMessage = ' DEADLINE TODAY!';
+        else if (daysLeft === 1) urgencyMessage = ' Only 1 day left!';
+        else urgencyMessage = ` Only ${daysLeft} days left!`;
 
         try {
           await sendApplicationReminderEmail(

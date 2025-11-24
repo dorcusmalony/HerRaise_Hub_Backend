@@ -82,7 +82,7 @@ function emitToUsers(userIds, event, data) {
 function broadcast(event, data) {
   if (!io) return;
   io.emit(event, data);
-  console.log(`📢 Broadcasted ${event} to all users`);
+  console.log(` Broadcasted ${event} to all users`);
 }
 
 // Emit new opportunity notification

@@ -35,8 +35,7 @@ const i18nMiddleware = require('./middleware/i18nMiddleware');
 
 const app = express();
 
-// ------------------ SECURITY & LOGGING ------------------
-// app.use(helmet()); // Disabled for admin panel functionality
+
 app.use(morgan('dev'));
 
 // ------------------ CORS CONFIG ------------------
@@ -58,19 +57,19 @@ const allowedOrigins = [...DEFAULT_FRONTENDS, ...envOrigins];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // allow requests with no origin (e.g., curl, mobile apps, server-to-server)
+    
     if (!origin) return callback(null, true);
 
-    // allow localhost
+    
     if (origin && origin.includes('localhost')) return callback(null, true);
 
-    // allow render.com domains (for admin access)
+    
     if (origin && origin.includes('.onrender.com')) return callback(null, true);
 
-    // allow exact-origin matches
+    
     if (allowedOrigins.includes(origin)) return callback(null, true);
 
-    // allow vercel.app subdomains (useful if frontend is deployed under different vercel subdomains)
+    
     if (/\.vercel\.app$/.test(origin)) return callback(null, true);
 
     callback(new Error('Not allowed by CORS'));
@@ -84,7 +83,7 @@ app.use(cors(corsOptions));
 
 
 
-// ------------------ BODY PARSING ------------------
+
 app.use(express.json({
   limit: '500mb',
   verify: (req, res, buf, encoding) => {
@@ -103,7 +102,7 @@ app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 app.use(cookieParser());
 
-// Session middleware
+
 app.use(session({
   secret: process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure',
   resave: false,
@@ -111,20 +110,20 @@ app.use(session({
   cookie: {
     httpOnly: process.env.NODE_ENV === 'production',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000 
   }
 }));
 
-// Add i18n middleware
+
 app.use(i18nMiddleware);
 
-// ------------------ STATIC FILES ------------------
-// Serve uploaded files (only needed if using local storage)
+
+
 app.use('/uploads', express.static('uploads'));
 app.use(express.static('public'));
 
-// ------------------ DEBUG LOGGING ------------------
-// Log all API requests for debugging (remove in production or gate with NODE_ENV check)
+
+
 app.use('/api', (req, res, next) => {
   console.log(` ${req.method} ${req.path}`, {
     body: req.method !== 'GET' ? req.body : undefined,
@@ -137,7 +136,7 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// ------------------ ROUTES ------------------
+
 
 // TEMPORARY FIX: If VITE_API_URL includes /api/auth, requests for other routes like /api/resources
 // might arrive as /api/auth/api/resources. This middleware corrects that.
@@ -145,15 +144,15 @@ app.use((req, res, next) => {
   const wrongPrefix = '/api/auth/api/';
   if (req.path.startsWith(wrongPrefix)) {
     const correctPath = req.path.substring(wrongPrefix.length - 1); // Keep the leading '/'
-    // Use 307 to preserve method and body
+    
     return res.redirect(307, correctPath);
   }
   next();
 });
 
-// TEMPORARY FIX: Redirect incorrect /api/auth/signup calls from the frontend to the correct endpoint.
+
 app.all('/api/auth/signup', (req, res) => {
-  // Use a 307 redirect to preserve the request method (e.g., POST) and body.
+  
   return res.redirect(307, '/api/auth/register');
 });
 
@@ -189,7 +188,7 @@ app.use('/api', languageRoutes);
 
 
 
-// API endpoint for client-side translations
+
 app.get('/api/translations', (req, res) => {
     const lang = req.query.lang || 'en';
     const supportedLangs = ['en', 'ar'];
@@ -202,7 +201,7 @@ app.get('/api/translations', (req, res) => {
     });
 });
 
-// Language switch endpoint
+
 app.post('/api/switch-language', (req, res) => {
     const { language } = req.body;
     if (['en', 'ar'].includes(language)) {
@@ -216,20 +215,20 @@ app.post('/api/switch-language', (req, res) => {
     }
 });
 
-// Redirect GET visits to /login and /register to the frontend UI, but keep informative JSON for other methods.
+
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://her-raise-hub.vercel.app').replace(/\/$/, '');
 
 app.get('/login', (req, res) => {
   return res.redirect(302, `${FRONTEND_URL}/login`);
 });
 app.all('/login', (req, res) => {
-  // If the frontend (or a client) POSTs directly to /login, forward it to the API auth route.
+  
   if (req.method === 'POST') {
-    // Use 307 to preserve method and body when redirecting
+    
     return res.redirect(307, '/api/auth/login');
   }
 
-  // For non-POST (e.g. someone probing via curl), return a clear API hint.
+  
   return res.status(400).json({
     success: false,
     message: 'This backend does not serve the frontend login page.',
@@ -242,9 +241,9 @@ app.get('/register', (req, res) => {
   return res.redirect(302, `${FRONTEND_URL}/register`);
 });
 app.all('/register', (req, res) => {
-  // If the frontend (or a client) POSTs directly to /register, forward it to the API auth route.
+  
   if (req.method === 'POST') {
-    // Use 307 to preserve method and body when redirecting
+    
     return res.redirect(307, '/api/auth/register');
   }
 
@@ -350,7 +349,7 @@ app.use((err, req, res, _next) => {
     return res.status(400).json({
       success: false,
       message: 'Invalid JSON in request body',
-      error: 'syntax_error',
+      error: 'error',
     });
   }
 

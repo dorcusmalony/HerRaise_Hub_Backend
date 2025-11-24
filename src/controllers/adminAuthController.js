@@ -63,7 +63,7 @@ exports.adminLogin = async (req, res) => {
   }
 };
 
-// Verify admin token
+
 exports.verifyAdmin = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
